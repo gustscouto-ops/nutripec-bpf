@@ -1,0 +1,14 @@
+{
+  "name": "NutriPEC Gestão BPF",
+  "short_name": "NutriPEC BPF",
+  "description": "Gestão da Qualidade e BPF para fábricas de ração (IN MAPA 04/2007)",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f1f5f9",
+  "theme_color": "#17824a",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,446 @@
+// NutriPEC Gestão BPF — modelo de dados (Fase 1 / MVP)
+// Ancorado na IN MAPA nº 04/2007 (BPF na alimentação animal).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Multi-tenant e acesso ─────────────────────────
+
+enum Perfil {
+  CEO
+  RT
+  CONSULTOR
+  OPERADOR
+  AUDITOR
+}
+
+enum TipoPlano {
+  ESSENCIAL
+  PROFISSIONAL
+  CONSULTORIA
+}
+
+model Tenant {
+  id              String    @id @default(cuid())
+  razaoSocial     String    @map("razao_social")
+  nomeFantasia    String?   @map("nome_fantasia")
+  cnpj            String    @unique
+  registroMapa    String?   @map("registro_sif_mapa")
+  endereco        String?
+  cidadeUf        String?   @map("cidade_uf")
+  tipoPlano       TipoPlano @default(ESSENCIAL) @map("tipo_plano")
+  // Regra do lote interno. Tokens: {PREFIXO} {DD} {MM} {AAAA} {AA} {DDMMAAAA} {SEQ}
+  regraLoteMp     String    @default("{PREFIXO}-{DDMMAAAA}") @map("regra_lote_mp")
+  // Regra do lote de produto acabado. Tokens: {CODIGO} {DD} {MM} {AA} {AAAA} {DDMMAAAA} {SEQ}
+  regraLoteProd   String    @default("{CODIGO}-{DD}{MM}{AA}-{SEQ}") @map("regra_lote_prod")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  memberships     Membership[]
+  fornecedores    Fornecedor[]
+  materiasPrimas  MateriaPrima[]
+  produtos        Produto[]
+  lotesMp         LoteMateriaPrima[]
+  rqExecucoes     RqExecucao[]
+  ordens          ProducaoOrdem[]
+  expedicoes      ExpedicaoEnvio[]
+  auditLogs       AuditLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  nome        String
+  email       String   @unique
+  senhaHash   String   @map("senha_hash")
+  registroProfissional String? @map("registro_profissional") // CRMV, CRZ, CREA (para RT)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  memberships Membership[]
+
+  @@map("users")
+}
+
+// Um usuário pode atuar em várias fábricas (ex.: Consultor de BPF multi-fábrica).
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tenantId  String   @map("tenant_id")
+  perfil    Perfil
+  cargo     String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([userId, tenantId])
+  @@map("memberships")
+}
+
+// ───────────────────────── Cadastros mestres ─────────────────────────
+
+enum StatusQualificacao {
+  APROVADO
+  REPROVADO
+  EM_AVALIACAO
+}
+
+model Fornecedor {
+  id                 String             @id @default(cuid())
+  tenantId           String             @map("tenant_id")
+  razaoSocial        String             @map("razao_social")
+  nomeFantasia       String?            @map("nome_fantasia")
+  cnpj               String
+  registroMapa       String?            @map("registro_mapa") // SIF / SIPEAGRO
+  contato            String?
+  email              String?
+  telefone           String?
+  cidadeUf           String?            @map("cidade_uf")
+  statusQualificacao StatusQualificacao @default(EM_AVALIACAO) @map("status_qualificacao")
+  dataQualificacao   DateTime?          @map("data_qualificacao")
+  observacoes        String?
+  ativo              Boolean            @default(true)
+  createdAt          DateTime           @default(now()) @map("created_at")
+
+  tenant         Tenant                   @relation(fields: [tenantId], references: [id])
+  materiasPrimas FornecedorMateriaPrima[]
+  lotes          LoteMateriaPrima[]
+
+  @@unique([tenantId, cnpj])
+  @@map("fornecedores")
+}
+
+enum CategoriaMp {
+  MACROINGREDIENTE
+  MICROMINERAL
+  MACROMINERAL
+  VITAMINA
+  PREMIX
+  NUCLEO
+  ADITIVO
+  MEDICAMENTO
+  EMBALAGEM
+  OUTRO
+}
+
+enum UnidadeMedida {
+  KG
+  G
+  TON
+  SC
+  L
+}
+
+model MateriaPrima {
+  id            String        @id @default(cuid())
+  tenantId      String        @map("tenant_id")
+  codigo        String?
+  nomeComercial String        @map("nome_comercial")
+  nomeTecnico   String?       @map("nome_tecnico")
+  prefixoLote   String        @map("prefixo_lote") // ex.: BIC
+  categoria     CategoriaMp
+  unidadeMedida UnidadeMedida @default(KG) @map("unidade_medida")
+  pesoEmbalagemKg Decimal?    @map("peso_embalagem_kg") @db.Decimal(12, 3)
+  umidadeMaxPct Decimal?      @map("umidade_max_pct") @db.Decimal(5, 2) // tolerância usada no RQ 1.2
+  temperaturaMaxC Decimal?    @map("temperatura_max_c") @db.Decimal(5, 1)
+  ativo         Boolean       @default(true)
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  tenant       Tenant                   @relation(fields: [tenantId], references: [id])
+  fornecedores FornecedorMateriaPrima[]
+  formulaItens FormulaItem[]
+  lotes        LoteMateriaPrima[]
+
+  @@unique([tenantId, prefixoLote])
+  @@map("materias_primas")
+}
+
+model FornecedorMateriaPrima {
+  fornecedorId   String  @map("fornecedor_id")
+  materiaPrimaId String  @map("materia_prima_id")
+  homologado     Boolean @default(false)
+
+  fornecedor   Fornecedor   @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  materiaPrima MateriaPrima @relation(fields: [materiaPrimaId], references: [id], onDelete: Cascade)
+
+  @@id([fornecedorId, materiaPrimaId])
+  @@map("fornecedor_materias_primas")
+}
+
+enum StatusFormula {
+  RASCUNHO
+  AGUARDANDO_RT
+  APROVADA
+}
+
+model Produto {
+  id                 String        @id @default(cuid())
+  tenantId           String        @map("tenant_id")
+  codigo             String
+  nome               String
+  especieDestino     String?       @map("especie_destino")
+  categoria          String? // ração, concentrado, núcleo, suplemento mineral...
+  tipoEmbalagem      String?       @map("tipo_embalagem")
+  pesoSacariaKg      Decimal       @default(25) @map("peso_sacaria") @db.Decimal(10, 3)
+  tamanhoBateladaKg  Decimal       @default(1000) @map("tamanho_batelada_kg") @db.Decimal(12, 3)
+  modeloEtiqueta     String?       @map("modelo_etiqueta")
+  indicacaoUso       String?       @map("indicacao_uso")
+  modoUso            String?       @map("modo_uso")
+  composicaoBasica   String?       @map("composicao_basica")
+  substitutivos      String?
+  restricoes         String? // restrições de uso / período de carência
+  // [{ "nutriente": "Proteína Bruta (mín.)", "valor": 130, "unidade": "g/kg" }]
+  niveisGarantia     Json          @default("[]") @map("niveis_garantia")
+  statusFormula      StatusFormula @default(RASCUNHO) @map("status_formula")
+  versaoFormula      Int           @default(1) @map("versao_formula")
+  aprovadoRtUserId   String?       @map("aprovado_rt_user_id")
+  aprovadoRtNome     String?       @map("aprovado_rt_nome")
+  dataAprovacaoRt    DateTime?     @map("data_aprovacao_rt")
+  hashFormula        String?       @map("hash_formula") // SHA-256 da fórmula aprovada
+  ativo              Boolean       @default(true)
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id])
+  itens  FormulaItem[]
+  ordens ProducaoOrdem[]
+
+  @@unique([tenantId, codigo])
+  @@map("produtos")
+}
+
+model FormulaItem {
+  id                    String  @id @default(cuid())
+  produtoId             String  @map("produto_id")
+  materiaPrimaId        String  @map("materia_prima_id")
+  percentual            Decimal @db.Decimal(8, 4)
+  quantidadeBateladaKg  Decimal @map("quantidade_batelada_kg") @db.Decimal(12, 3)
+  ordemDosagem          Int     @default(0) @map("ordem_dosagem")
+
+  produto      Produto      @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  materiaPrima MateriaPrima @relation(fields: [materiaPrimaId], references: [id])
+
+  @@unique([produtoId, materiaPrimaId])
+  @@map("formulas_itens")
+}
+
+// ───────────────────────── POPs e RQs ─────────────────────────
+
+enum Frequencia {
+  DIARIA
+  SEMANAL
+  QUINZENAL
+  MENSAL
+  SEMESTRAL
+  ANUAL
+  PERIODICA
+  QUANDO_OCORRE
+}
+
+model Pop {
+  id                    String  @id @default(cuid())
+  numeroPop             Int     @unique @map("numero_pop")
+  titulo                String
+  descricaoProcedimento String  @map("descricao_procedimento")
+  versao                Int     @default(1)
+
+  modelos RqModelo[]
+
+  @@map("pops")
+}
+
+model RqModelo {
+  id         String     @id @default(cuid())
+  popId      String     @map("pop_id")
+  codigoRq   String     @unique @map("codigo_rq")
+  titulo     String
+  frequencia Frequencia
+  // Definição dos campos do checklist (JSON) — base do futuro customizador de formulários
+  campos     Json       @default("[]")
+  versao     Int        @default(1)
+  ativo      Boolean    @default(true)
+
+  pop        Pop          @relation(fields: [popId], references: [id])
+  execucoes  RqExecucao[]
+
+  @@map("rq_modelos")
+}
+
+enum StatusRq {
+  CONFORME
+  NAO_CONFORME
+}
+
+model RqExecucao {
+  id                 String   @id @default(cuid())
+  tenantId           String   @map("tenant_id")
+  rqModeloId         String   @map("rq_modelo_id")
+  numero             Int // sequencial por tenant + modelo
+  userIdAssinatura   String   @map("user_id_assinatura")
+  nomeAssinatura     String   @map("nome_assinatura")
+  perfilAssinatura   Perfil   @map("perfil_assinatura")
+  dataHoraExecucao   DateTime @default(now()) @map("data_hora_execucao")
+  status             StatusRq
+  respostas          Json // { campoId: { valor, conforme, descricaoNc, acaoCorretiva } }
+  cabecalho          Json     @default("{}") // dados específicos do RQ (ex.: NF, peso, fornecedor)
+  observacoes        String?
+  hashAssinatura     String   @map("hash_assinatura") // SHA-256 do conteúdo assinado
+  ipOrigem           String?  @map("ip_origem")
+  pdfUrl             String?  @map("pdf_url")
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  modelo   RqModelo         @relation(fields: [rqModeloId], references: [id])
+  fotos    RqExecucaoFoto[]
+  loteMp   LoteMateriaPrima?
+
+  @@unique([tenantId, rqModeloId, numero])
+  @@map("rq_execucoes")
+}
+
+model RqExecucaoFoto {
+  id           String   @id @default(cuid())
+  rqExecucaoId String   @map("rq_execucao_id")
+  fotoUrl      String   @map("foto_url")
+  mimeType     String   @map("mime_type")
+  descricao    String?
+  hashArquivo  String   @map("hash_arquivo")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  execucao RqExecucao @relation(fields: [rqExecucaoId], references: [id])
+
+  @@map("rq_execucoes_fotos")
+}
+
+// ───────────────────────── Estoque, produção e expedição ─────────────────────────
+
+enum StatusLote {
+  LIBERADO
+  QUARENTENA
+  REPROVADO
+}
+
+model LoteMateriaPrima {
+  id                String     @id @default(cuid())
+  tenantId          String     @map("tenant_id")
+  materiaPrimaId    String     @map("materia_prima_id")
+  fornecedorId      String     @map("fornecedor_id")
+  codigoLoteInterno String     @map("codigo_lote_interno")
+  loteFornecedor    String?    @map("lote_fornecedor")
+  numeroNf          String     @map("numero_nf")
+  quantidadeKg      Decimal    @map("quantidade_kg") @db.Decimal(14, 3)
+  dataRecebimento   DateTime   @default(now()) @map("data_recebimento")
+  dataFabricacao    DateTime?  @map("data_fabricacao")
+  dataValidade      DateTime?  @map("data_validade")
+  status            StatusLote
+  aprovado          Boolean    @default(false)
+  decisaoRtUserId   String?    @map("decisao_rt_user_id")
+  decisaoRtNome     String?    @map("decisao_rt_nome")
+  decisaoRtEm       DateTime?  @map("decisao_rt_em")
+  decisaoRtMotivo   String?    @map("decisao_rt_motivo")
+  rqExecucaoId      String?    @unique @map("rq_execucao_id")
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  materiaPrima MateriaPrima        @relation(fields: [materiaPrimaId], references: [id])
+  fornecedor   Fornecedor          @relation(fields: [fornecedorId], references: [id])
+  rqExecucao   RqExecucao?         @relation(fields: [rqExecucaoId], references: [id])
+  consumos     ProducaoConsumoLote[]
+
+  @@unique([tenantId, codigoLoteInterno])
+  @@map("lotes_materia_prima")
+}
+
+enum Turno {
+  MANHA
+  TARDE
+  NOITE
+}
+
+model ProducaoOrdem {
+  id                       String   @id @default(cuid())
+  tenantId                 String   @map("tenant_id")
+  produtoId                String   @map("produto_id")
+  codigoLoteProduzido      String   @map("codigo_lote_produzido")
+  sequenciaDia             Int      @map("sequencia_dia") // ordem de sequenciamento (POP 07)
+  misturador               String?
+  dataHoraInicio           DateTime @default(now()) @map("data_hora_inicio")
+  turno                    Turno
+  numeroBateladas          Int      @map("numero_bateladas")
+  quantidadeSacasProduzidas Int     @map("quantidade_sacas_produzidas")
+  dataValidade             DateTime? @map("data_validade")
+  versaoFormula            Int      @map("versao_formula")
+  operadorUserId           String   @map("operador_user_id")
+  operadorNome             String   @map("operador_nome")
+  hashAssinatura           String   @map("hash_assinatura")
+  observacoes              String?
+
+  tenant     Tenant                @relation(fields: [tenantId], references: [id])
+  produto    Produto               @relation(fields: [produtoId], references: [id])
+  consumos   ProducaoConsumoLote[]
+  expedicoes ExpedicaoEnvio[]
+
+  @@unique([tenantId, codigoLoteProduzido])
+  @@map("producao_ordens")
+}
+
+model ProducaoConsumoLote {
+  id                    String  @id @default(cuid())
+  producaoOrdemId       String  @map("producao_ordem_id")
+  loteMateriaPrimaId    String  @map("lote_materia_prima_id")
+  quantidadeUtilizadaKg Decimal @map("quantidade_utilizada_kg") @db.Decimal(14, 3)
+
+  ordem ProducaoOrdem    @relation(fields: [producaoOrdemId], references: [id])
+  lote  LoteMateriaPrima @relation(fields: [loteMateriaPrimaId], references: [id])
+
+  @@map("producao_consumo_lotes")
+}
+
+model ExpedicaoEnvio {
+  id               String   @id @default(cuid())
+  tenantId         String   @map("tenant_id")
+  clienteNome      String   @map("cliente_nome")
+  clienteDocumento String?  @map("cliente_documento")
+  clienteCidadeUf  String?  @map("cliente_cidade_uf")
+  numeroNf         String   @map("numero_nf")
+  placaVeiculo     String?  @map("placa_veiculo")
+  producaoOrdemId  String   @map("producao_ordem_id")
+  quantidadeSacas  Int      @map("quantidade_sacas")
+  dataHora         DateTime @default(now()) @map("data_hora")
+  userId           String   @map("user_id")
+  userNome         String   @map("user_nome")
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id])
+  ordem  ProducaoOrdem @relation(fields: [producaoOrdemId], references: [id])
+
+  @@map("expedicao_envios")
+}
+
+// ───────────────────────── Trilha de auditoria (imutável) ─────────────────────────
+// UPDATE/DELETE nesta tabela são bloqueados por trigger no PostgreSQL
+// (ver prisma/migrations/*_audit_immutable).
+
+model AuditLog {
+  id              BigInt   @id @default(autoincrement())
+  tenantId        String?  @map("tenant_id")
+  userId          String?  @map("user_id")
+  userNome        String?  @map("user_nome")
+  tabelaAfetada   String   @map("tabela_afetada")
+  registroId      String   @map("registro_id")
+  acao            String // CREATE | UPDATE | DELETE | SIGN | APPROVE | LOGIN ...
+  dadosAnteriores Json?    @map("dados_anteriores")
+  dadosNovos      Json?    @map("dados_novos")
+  ip              String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, tabelaAfetada, registroId])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
