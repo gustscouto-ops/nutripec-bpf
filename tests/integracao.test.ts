@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
 import type { Ctx } from "@/lib/auth";
-import { CATALOGO_POPS } from "@/lib/rq/catalogo";
+import { sincronizarCatalogo } from "@/lib/rq/sincronizar";
 import { aprovarFormula, salvarProduto } from "@/lib/servicos/formula";
 import { decidirLote, registrarRecebimento } from "@/lib/servicos/recebimento";
 import { lotesDisponiveis, registrarExpedicao, registrarOrdem } from "@/lib/servicos/producao";
@@ -25,12 +25,7 @@ const checklistOk = (umidade = 12) => ({
 });
 
 beforeAll(async () => {
-  for (const pop of CATALOGO_POPS) {
-    const p = await prisma.pop.upsert({ where: { numeroPop: pop.numeroPop }, update: {}, create: { numeroPop: pop.numeroPop, titulo: pop.titulo, descricaoProcedimento: pop.descricao } });
-    for (const rq of pop.rqs) {
-      await prisma.rqModelo.upsert({ where: { codigoRq: rq.codigoRq }, update: {}, create: { popId: p.id, codigoRq: rq.codigoRq, titulo: rq.titulo, frequencia: rq.frequencia, campos: rq.campos } });
-    }
-  }
+  await sincronizarCatalogo(prisma);
   const tenant = await prisma.tenant.create({ data: { razaoSocial: `Teste ${uid}`, cnpj: `teste-${uid}` } });
   const user = await prisma.user.create({ data: { nome: "Tester", email: `t-${uid}@teste`, senhaHash: "x" } });
   await prisma.membership.create({ data: { userId: user.id, tenantId: tenant.id, perfil: "RT" } });

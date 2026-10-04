@@ -2,7 +2,7 @@ import { exigirCtx } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ROTULO_PERFIL } from "@/lib/permissions";
 import { Cabecalho, Selo } from "@/components/ui";
-import { alternarAcesso } from "./actions";
+import { alternarAcesso, salvarAlertas } from "./actions";
 import { FormUsuario } from "./form";
 
 export const metadata = { title: "Usuários" };
@@ -16,17 +16,24 @@ export default async function Usuarios() {
   });
   return (
     <div className="mx-auto max-w-6xl">
-      <Cabecalho titulo="Usuários e perfis" subtitulo="Controle de acesso por empresa. Um mesmo login pode atuar em várias fábricas (ex.: consultor)." />
+      <Cabecalho titulo="Usuários e perfis" subtitulo="Controle de acesso por empresa. Um mesmo login pode atuar em várias fábricas (ex.: consultor). Quem tem alertas marcados recebe o resumo diário de RQs atrasados e NCs por e-mail e WhatsApp." />
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="cartao overflow-x-auto p-0 sm:p-0">
           <table className="tabela">
-            <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Acesso</th></tr></thead>
+            <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Alertas diários</th><th>Acesso</th></tr></thead>
             <tbody>
               {membros.map((m) => (
                 <tr key={m.id} className={m.ativo ? "" : "opacity-50"}>
                   <td className="font-medium">{m.user.nome}<div className="text-xs font-normal text-slate-500">{[m.cargo, m.user.registroProfissional].filter(Boolean).join(" · ")}</div></td>
                   <td>{m.user.email}</td>
                   <td><Selo cor={m.perfil === "RT" ? "verde" : m.perfil === "AUDITOR" ? "cinza" : "azul"}>{ROTULO_PERFIL[m.perfil]}</Selo></td>
+                  <td>
+                    <form action={salvarAlertas.bind(null, m.id)} className="flex items-center gap-2">
+                      <input type="checkbox" name="receberAlertas" defaultChecked={m.receberAlertas} aria-label={`Alertas para ${m.user.nome}`} className="h-4 w-4" />
+                      <input name="telefone" defaultValue={m.user.telefone ?? ""} placeholder="WhatsApp (DDI+DDD)" className="campo w-40 py-1 text-sm" />
+                      <button className="text-sm font-medium text-marca-700 hover:underline">Salvar</button>
+                    </form>
+                  </td>
                   <td>
                     {m.userId === ctx.userId ? (
                       <span className="text-xs text-slate-500">você</span>

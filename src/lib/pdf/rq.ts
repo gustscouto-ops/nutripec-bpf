@@ -3,64 +3,73 @@ import { lerArquivo } from "../storage";
 import { ROTULO_PERFIL } from "../permissions";
 import type { CampoRq, Respostas } from "../rq/campos";
 import type { CabecalhoRecebimento } from "../servicos/recebimento";
+import { CODIGO_RQ_RECEBIMENTO } from "../servicos/rq";
 import { COR, MARGEM, cabecalho, campos, fmtData, fmtDataHora, garantirEspaco, largura, novoDocumento, paraBuffer, rodapes, secao } from "./base";
 
 const ROT: Record<string, string> = { C: "Conforme", NC: "NÃO CONFORME", NA: "N/A" };
 
-/** PDF do RQ 1.2 assinado, gerado sempre a partir do registro imutável no banco. */
-export async function pdfRecebimento(tenantId: string, rqId: string): Promise<Buffer | null> {
+/**
+ * PDF de qualquer RQ assinado, gerado sempre a partir do registro imutável no banco.
+ * Usa a cópia dos campos gravada na assinatura, então mudanças posteriores no formulário não alteram o documento.
+ */
+export async function pdfRq(tenantId: string, rqId: string): Promise<Buffer | null> {
   const rq = await prisma.rqExecucao.findFirst({
     where: { id: rqId, tenantId },
-    include: { tenant: true, modelo: { include: { pop: true } }, fotos: true, loteMp: true },
+    include: { tenant: true, modelo: { include: { pop: true } }, fotos: true, loteMp: true, naoConformidades: { orderBy: { numero: "asc" } } },
   });
   if (!rq) return null;
   const assinante = await prisma.user.findUnique({ where: { id: rq.userIdAssinatura }, select: { registroProfissional: true } });
-  const c = rq.cabecalho as unknown as CabecalhoRecebimento;
+  const recebimento = rq.codigoRq === CODIGO_RQ_RECEBIMENTO;
+  const c = rq.cabecalho as unknown as CabecalhoRecebimento & { periodo?: string };
   const respostas = rq.respostas as unknown as Respostas;
-  const camposRq = rq.modelo.campos as unknown as CampoRq[];
+  const camposRq = ((rq.campos as unknown as CampoRq[]).length ? rq.campos : rq.modelo.campos) as unknown as CampoRq[];
   const numero = String(rq.numero).padStart(4, "0");
 
-  const doc = novoDocumento(`${rq.modelo.codigoRq} nº ${numero} — ${c.codigoLoteInterno}`);
+  const doc = novoDocumento(`${rq.codigoRq} nº ${numero}${recebimento ? ` — ${c.codigoLoteInterno}` : ""}`);
   cabecalho(
     doc,
     rq.tenant,
-    [`POP 0${rq.modelo.pop.numeroPop} · ${rq.modelo.codigoRq} (v${rq.modelo.versao})`, `Registro nº ${numero}`, fmtDataHora(rq.dataHoraExecucao)],
+    [`POP ${String(rq.modelo.pop.numeroPop).padStart(2, "0")} · ${rq.codigoRq} (v${rq.versaoModelo})`, `Registro nº ${numero}`, fmtDataHora(rq.dataHoraExecucao)],
     `${rq.modelo.titulo}`,
   );
 
-  // Lote e resultado
+  // Identificação e resultado
   const w = largura(doc);
   const y = doc.y + 4;
-  doc.roundedRect(MARGEM, y, w, 46, 6).fillAndStroke("#f0fdf4", "#bbf7d0");
-  doc.fillColor(COR.suave).font("Helvetica").fontSize(7.5).text("LOTE INTERNO", MARGEM + 12, y + 8);
-  doc.fillColor(COR.texto).font("Helvetica-Bold").fontSize(18).text(c.codigoLoteInterno, MARGEM + 12, y + 19);
   const conforme = rq.status === "CONFORME";
+  doc.roundedRect(MARGEM, y, w, 46, 6).fillAndStroke(conforme ? "#f0fdf4" : "#fef2f2", conforme ? "#bbf7d0" : "#fecaca");
+  doc.fillColor(COR.suave).font("Helvetica").fontSize(7.5).text(recebimento ? "LOTE INTERNO" : "PERÍODO DE REFERÊNCIA", MARGEM + 12, y + 8);
+  doc.fillColor(COR.texto).font("Helvetica-Bold").fontSize(recebimento ? 18 : 14).text(recebimento ? c.codigoLoteInterno : (c.periodo ?? fmtData(rq.referenciaInicio)), MARGEM + 12, y + 19, { width: w / 2 });
   doc
     .fillColor(conforme ? COR.verde : COR.vermelho)
     .font("Helvetica-Bold")
     .fontSize(11)
-    .text(conforme ? "INSPEÇÃO CONFORME" : "INSPEÇÃO NÃO CONFORME", MARGEM + w / 2, y + 10, { width: w / 2 - 12, align: "right" });
-  if (rq.loteMp) {
-    const s = { LIBERADO: "Lote liberado para produção", QUARENTENA: "Lote em quarentena (aguarda RT)", REPROVADO: "Lote reprovado" }[rq.loteMp.status];
-    doc.fillColor(COR.texto).font("Helvetica").fontSize(9).text(s, MARGEM + w / 2, y + 26, { width: w / 2 - 12, align: "right" });
-  }
+    .text(conforme ? (recebimento ? "INSPEÇÃO CONFORME" : "CONFORME") : recebimento ? "INSPEÇÃO NÃO CONFORME" : "NÃO CONFORME", MARGEM + w / 2, y + 10, { width: w / 2 - 12, align: "right" });
+  const situacao = rq.loteMp
+    ? { LIBERADO: "Lote liberado para produção", QUARENTENA: "Lote em quarentena (aguarda RT)", REPROVADO: "Lote reprovado" }[rq.loteMp.status]
+    : rq.atrasado
+      ? "Registrado fora do prazo"
+      : null;
+  if (situacao) doc.fillColor(rq.atrasado ? COR.vermelho : COR.texto).font("Helvetica").fontSize(9).text(situacao, MARGEM + w / 2, y + 26, { width: w / 2 - 12, align: "right" });
   doc.y = y + 56;
 
-  secao(doc, "Dados da carga");
-  campos(doc, [
-    ["Fornecedor", `${c.fornecedor.razaoSocial} — CNPJ ${c.fornecedor.cnpj}`],
-    ["Registro MAPA do fornecedor", c.fornecedor.registroMapa],
-    ["Matéria-prima", c.materiaPrima.nome],
-    ["Nota fiscal", c.numeroNf],
-    ["Peso total da carga", `${c.quantidadeKg.toLocaleString("pt-BR")} kg`],
-    ["Lote do fornecedor", c.loteFornecedor],
-    ["Data de fabricação", fmtData(c.dataFabricacao ? `${c.dataFabricacao}T12:00:00Z` : null)],
-    ["Data de validade", fmtData(c.dataValidade ? `${c.dataValidade}T12:00:00Z` : null)],
-    ["Placa do veículo", c.placaVeiculo],
-    ["Transportadora / motorista", [c.transportadora, c.motorista].filter(Boolean).join(" / ") || null],
-  ]);
+  if (recebimento) {
+    secao(doc, "Dados da carga");
+    campos(doc, [
+      ["Fornecedor", `${c.fornecedor.razaoSocial} — CNPJ ${c.fornecedor.cnpj}`],
+      ["Registro MAPA do fornecedor", c.fornecedor.registroMapa],
+      ["Matéria-prima", c.materiaPrima.nome],
+      ["Nota fiscal", c.numeroNf],
+      ["Peso total da carga", `${c.quantidadeKg.toLocaleString("pt-BR")} kg`],
+      ["Lote do fornecedor", c.loteFornecedor],
+      ["Data de fabricação", fmtData(c.dataFabricacao ? `${c.dataFabricacao}T12:00:00Z` : null)],
+      ["Data de validade", fmtData(c.dataValidade ? `${c.dataValidade}T12:00:00Z` : null)],
+      ["Placa do veículo", c.placaVeiculo],
+      ["Transportadora / motorista", [c.transportadora, c.motorista].filter(Boolean).join(" / ") || null],
+    ]);
+  }
 
-  secao(doc, "Checklist de inspeção");
+  secao(doc, recebimento ? "Checklist de inspeção" : "Itens verificados");
   camposRq.forEach((campo, i) => {
     const r = respostas[campo.id];
     const nc = r?.conforme === false;
@@ -109,6 +118,14 @@ export async function pdfRecebimento(tenantId: string, rqId: string): Promise<Bu
     }
   }
 
+  if (rq.naoConformidades.length) {
+    secao(doc, "Não conformidades abertas");
+    for (const n of rq.naoConformidades) {
+      garantirEspaco(doc, 20);
+      doc.fillColor(COR.texto).font("Helvetica").fontSize(9).text(`NC ${String(n.numero).padStart(4, "0")} — ${n.titulo} (situação na emissão: ${n.status.toLowerCase().replace(/_/g, " ")})`, MARGEM, doc.y, { width: w });
+    }
+  }
+
   if (rq.loteMp?.decisaoRtEm) {
     secao(doc, "Decisão do Responsável Técnico");
     campos(doc, [
@@ -133,6 +150,6 @@ export async function pdfRecebimento(tenantId: string, rqId: string): Promise<Bu
     .text(rq.hashAssinatura, { width: w - 24 });
   doc.y = ya + 90;
 
-  rodapes(doc, `NutriPEC Gestão BPF · ${rq.modelo.codigoRq} nº ${numero} · Documento gerado em ${fmtDataHora(new Date())}`);
+  rodapes(doc, `NutriPEC Gestão BPF · ${rq.codigoRq} nº ${numero} · Documento gerado em ${fmtDataHora(new Date())}`);
   return paraBuffer(doc);
 }

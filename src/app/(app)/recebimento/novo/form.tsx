@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Checklist } from "@/components/checklist";
+import { Fotos, anexarFotos, type Foto } from "@/components/fotos";
 import { Assinatura } from "@/components/assinatura";
 import { Alerta, Campo } from "@/components/ui";
 import { avaliarRespostas, type CampoRq, type Respostas } from "@/lib/rq/campos";
@@ -32,7 +33,7 @@ type Carga = {
   motorista: string;
 };
 
-type Foto = { blob: Blob; url: string; descricao: string };
+
 
 const VAZIA: Carga = {
   fornecedorId: "",
@@ -48,21 +49,6 @@ const VAZIA: Carga = {
 };
 
 const ETAPAS = ["Carga", "Inspeção", "Fotos", "Assinatura"];
-
-/** Reduz a foto da câmera (~1600 px, JPEG) antes do envio: economiza dados no Wi-Fi da fábrica. */
-async function comprimir(arquivo: File): Promise<Blob> {
-  try {
-    const bmp = await createImageBitmap(arquivo);
-    const escala = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bmp.width * escala);
-    canvas.height = Math.round(bmp.height * escala);
-    canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-    return await new Promise((ok) => canvas.toBlob((b) => ok(b ?? arquivo), "image/jpeg", 0.8));
-  } catch {
-    return arquivo;
-  }
-}
 
 export function FormRecebimento({
   opcoes,
@@ -159,18 +145,6 @@ export function FormRecebimento({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function adicionarFotos(arquivos: FileList | null) {
-    if (!arquivos) return;
-    const livres = maxFotos - fotos.length;
-    const novas = await Promise.all(
-      [...arquivos].slice(0, livres).map(async (f) => {
-        const blob = await comprimir(f);
-        return { blob, url: URL.createObjectURL(blob), descricao: "" };
-      }),
-    );
-    setFotos((fs) => [...fs, ...novas]);
-  }
-
   function assinar(senha: string) {
     setErro(null);
     const fd = new FormData();
@@ -184,10 +158,7 @@ export function FormRecebimento({
         observacoes,
       }),
     );
-    fotos.forEach((f, i) => {
-      fd.append("fotos", new File([f.blob], `foto-${i + 1}.jpg`, { type: f.blob.type || "image/jpeg" }));
-      fd.append("descricoes", f.descricao);
-    });
+    anexarFotos(fd, fotos);
     iniciar(async () => {
       const r = await acaoRegistrarRecebimento(fd);
       if (!r.ok) {
@@ -302,27 +273,7 @@ export function FormRecebimento({
             <h2 className="font-semibold">Evidência fotográfica</h2>
             <p className="text-sm text-slate-600">Até {maxFotos} fotos: caminhão, lona, carga, NF, laudo ou não conformidades.</p>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {fotos.map((f, i) => (
-              <div key={f.url} className="overflow-hidden rounded-lg border border-slate-200">
-                <img src={f.url} alt={`Foto ${i + 1}`} className="aspect-[4/3] w-full object-cover" />
-                <div className="space-y-1 p-2">
-                  <input value={f.descricao} onChange={(e) => setFotos(fotos.map((x, j) => (j === i ? { ...x, descricao: e.target.value } : x)))} placeholder="Descrição" className="campo py-1.5 text-sm" />
-                  <button type="button" onClick={() => setFotos(fotos.filter((_, j) => j !== i))} className="text-sm font-medium text-red-600">Remover</button>
-                </div>
-              </div>
-            ))}
-            {fotos.length < maxFotos && (
-              <label className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-600 hover:border-marca-500">
-                <svg viewBox="0 0 24 24" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                  <path d="M3 8h3l2-3h8l2 3h3v12H3z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-                <span className="mt-1 text-sm font-medium">Tirar foto</span>
-                <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { adicionarFotos(e.target.files); e.target.value = ""; }} />
-              </label>
-            )}
-          </div>
+          <Fotos fotos={fotos} onChange={setFotos} max={maxFotos} />
         </section>
       )}
 

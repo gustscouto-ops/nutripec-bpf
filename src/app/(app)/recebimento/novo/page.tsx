@@ -2,6 +2,7 @@ import { exigirCtx } from "@/lib/auth";
 import { prisma, num } from "@/lib/db";
 import { pode } from "@/lib/permissions";
 import { paresHomologados, CODIGO_RQ_RECEBIMENTO, MAX_FOTOS } from "@/lib/servicos/recebimento";
+import { modeloEfetivo } from "@/lib/servicos/rq";
 import type { CampoRq } from "@/lib/rq/campos";
 import { Alerta } from "@/components/ui";
 import { FormRecebimento } from "./form";
@@ -13,9 +14,10 @@ export default async function NovoRecebimento() {
   if (!pode(ctx.perfil, "operacao:registrar")) return <Alerta>Seu perfil não registra recebimentos.</Alerta>;
   const [pares, modelo, tenant] = await Promise.all([
     paresHomologados(ctx.tenantId),
-    prisma.rqModelo.findUniqueOrThrow({ where: { codigoRq: CODIGO_RQ_RECEBIMENTO }, include: { pop: true } }),
+    modeloEfetivo(ctx.tenantId, CODIGO_RQ_RECEBIMENTO),
     prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
   ]);
+  if (!modelo?.ativo) return <Alerta>O RQ 1.2 está desativado para esta empresa.</Alerta>;
   const opcoes = pares.map((p) => ({
     fornecedorId: p.fornecedorId,
     fornecedor: p.fornecedor.razaoSocial,

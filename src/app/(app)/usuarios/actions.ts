@@ -48,3 +48,21 @@ export async function alternarAcesso(membershipId: string) {
   });
   revalidatePath("/usuarios");
 }
+
+/** Quem recebe o resumo diário de pendências (e-mail sempre; WhatsApp quando houver telefone). */
+export async function salvarAlertas(membershipId: string, form: FormData) {
+  const ctx = await exigirCtx("usuarios:gerenciar");
+  const telefone = String(form.get("telefone") ?? "").replace(/\D/g, "") || null;
+  const receberAlertas = form.get("receberAlertas") === "on";
+  await prisma.$transaction(async (tx) => {
+    const m = await tx.membership.findFirst({ where: { id: membershipId, tenantId: ctx.tenantId } });
+    if (!m) return;
+    await atualizarAuditado(tx, ctx, "membership", m.id, { receberAlertas });
+    const u = await tx.user.findUniqueOrThrow({ where: { id: m.userId }, select: { telefone: true } });
+    if (u.telefone !== telefone) {
+      await tx.user.update({ where: { id: m.userId }, data: { telefone } });
+      await registrarAuditoria(tx, ctx, { tabela: "user", registroId: m.userId, acao: "UPDATE", antes: { telefone: u.telefone }, depois: { telefone } });
+    }
+  });
+  revalidatePath("/usuarios");
+}

@@ -7,6 +7,7 @@ import type { CampoRq, Respostas } from "@/lib/rq/campos";
 import type { CabecalhoRecebimento } from "@/lib/servicos/recebimento";
 import { Alerta, Cabecalho, Dl, Selo } from "@/components/ui";
 import { COR_STATUS_LOTE, ROTULO_STATUS_LOTE, data, dataHora, kg } from "@/lib/formato";
+import { COR_STATUS_NC, ROTULO_STATUS_NC } from "@/lib/servicos/nc";
 import { DecisaoRt } from "./decisao";
 
 export const metadata = { title: "Recebimento" };
@@ -19,7 +20,7 @@ export default async function RecebimentoDetalhe({ params, searchParams }: { par
   const ctx = await exigirCtx();
   const rq = await prisma.rqExecucao.findFirst({
     where: { id, tenantId: ctx.tenantId },
-    include: { modelo: { include: { pop: true } }, fotos: true, loteMp: true },
+    include: { modelo: { include: { pop: true } }, fotos: true, loteMp: true, naoConformidades: { orderBy: { numero: "asc" } } },
   });
   if (!rq) notFound();
   const c = rq.cabecalho as unknown as CabecalhoRecebimento;
@@ -96,6 +97,20 @@ export default async function RecebimentoDetalhe({ params, searchParams }: { par
         </ul>
         {rq.observacoes && <p className="mt-3 text-sm"><b>Observações:</b> {rq.observacoes}</p>}
       </section>
+
+      {rq.naoConformidades.length > 0 && (
+        <section className="cartao">
+          <h2 className="mb-3 font-semibold">Não conformidades abertas por este recebimento</h2>
+          <ul className="space-y-2">
+            {rq.naoConformidades.map((n) => (
+              <li key={n.id} className="flex items-center justify-between gap-2">
+                <Link href={`/nao-conformidades/${n.id}`} className="link">NC {String(n.numero).padStart(4, "0")} — {n.titulo}</Link>
+                <Selo cor={COR_STATUS_NC[n.status]}>{ROTULO_STATUS_NC[n.status]}</Selo>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {rq.fotos.length > 0 && (
         <section className="cartao">

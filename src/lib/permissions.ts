@@ -7,10 +7,13 @@ export type Permissao =
   | "operacao:registrar"
   | "usuarios:gerenciar"
   | "empresa:configurar"
-  | "auditoria:ver";
+  | "auditoria:ver"
+  | "nc:tratar"
+  | "nc:encerrar"
+  | "formulario:customizar";
 
 const MATRIZ: Record<Perfil, Permissao[]> = {
-  CEO: ["cadastros:editar", "operacao:registrar", "usuarios:gerenciar", "empresa:configurar", "auditoria:ver"],
+  CEO: ["cadastros:editar", "operacao:registrar", "usuarios:gerenciar", "empresa:configurar", "auditoria:ver", "nc:tratar"],
   RT: [
     "cadastros:editar",
     "formula:aprovar",
@@ -18,6 +21,9 @@ const MATRIZ: Record<Perfil, Permissao[]> = {
     "operacao:registrar",
     "empresa:configurar",
     "auditoria:ver",
+    "nc:tratar",
+    "nc:encerrar",
+    "formulario:customizar",
   ],
   CONSULTOR: [
     "cadastros:editar",
@@ -27,6 +33,9 @@ const MATRIZ: Record<Perfil, Permissao[]> = {
     "usuarios:gerenciar",
     "empresa:configurar",
     "auditoria:ver",
+    "nc:tratar",
+    "nc:encerrar",
+    "formulario:customizar",
   ],
   OPERADOR: ["operacao:registrar"],
   AUDITOR: ["auditoria:ver"],

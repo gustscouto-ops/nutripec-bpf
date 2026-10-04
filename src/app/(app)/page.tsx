@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { inicioDoDia } from "@/lib/servicos/producao";
 import { Cabecalho, Indicador, Selo, Vazio, BotaoLink } from "@/components/ui";
 import { dataHora, numero } from "@/lib/formato";
+import { CODIGO_RQ_RECEBIMENTO, tarefas } from "@/lib/servicos/rq";
 import type { CabecalhoRecebimento } from "@/lib/servicos/recebimento";
 
 export const metadata = { title: "Painel" };
@@ -14,6 +15,20 @@ export default async function Painel() {
   const hoje = inicioDoDia(new Date());
   const ha30 = new Date(Date.now() - 30 * 86400000);
   const ha90 = new Date(Date.now() - 90 * 86400000);
+
+  const [agenda, ncsAbertas, ncsVencidas, porPop30, pops] = await Promise.all([
+    tarefas(t),
+    prisma.naoConformidade.count({ where: { tenantId: t, status: { in: ["ABERTA", "EM_TRATAMENTO", "AGUARDANDO_VERIFICACAO"] } } }),
+    prisma.naoConformidade.count({ where: { tenantId: t, status: { in: ["ABERTA", "EM_TRATAMENTO"] }, prazo: { lt: new Date() } } }),
+    prisma.rqExecucao.groupBy({ by: ["codigoRq", "status"], where: { tenantId: t, dataHoraExecucao: { gte: ha30 } }, _count: true }),
+    prisma.pop.findMany({ orderBy: { numeroPop: "asc" }, select: { numeroPop: true, titulo: true } }),
+  ]);
+  const conformidadePop = pops.map((p) => {
+    const linhas = porPop30.filter((l) => l.codigoRq.startsWith(`RQ ${p.numeroPop}.`));
+    const total = linhas.reduce((s, l) => s + l._count, 0);
+    const conformes = linhas.filter((l) => l.status === "CONFORME").reduce((s, l) => s + l._count, 0);
+    return { ...p, total, pct: total ? Math.round((conformes / total) * 100) : null };
+  });
 
   const [rqsHoje, rqs30, quarentena, formulasPendentes, ordensHoje, producao30, ultimos, ncs90] = await Promise.all([
     prisma.rqExecucao.groupBy({ by: ["status"], where: { tenantId: t, dataHoraExecucao: { gte: hoje } }, _count: true }),
@@ -59,6 +74,37 @@ export default async function Painel() {
         }
       />
 
+      <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Indicador
+          rotulo="RQs atrasados"
+          valor={agenda.atrasadas.length}
+          detalhe={agenda.atrasadas.length ? agenda.atrasadas.slice(0, 3).map((a) => a.modelo.codigoRq).join(", ") : "nenhum registro em atraso"}
+          cor={agenda.atrasadas.length ? "vermelho" : "verde"}
+          href="/tarefas"
+        />
+        <Indicador
+          rotulo="Pendentes no período"
+          valor={agenda.pendentes.length}
+          detalhe={`${agenda.concluidas.length} já registrado(s)`}
+          cor={agenda.pendentes.length ? "amarelo" : "verde"}
+          href="/tarefas"
+        />
+        <Indicador
+          rotulo="Não conformidades abertas"
+          valor={ncsAbertas}
+          detalhe="aguardando tratamento ou eficácia"
+          cor={ncsAbertas ? "amarelo" : "verde"}
+          href="/nao-conformidades"
+        />
+        <Indicador
+          rotulo="NCs com prazo vencido"
+          valor={ncsVencidas}
+          detalhe="ação preventiva fora do prazo"
+          cor={ncsVencidas ? "vermelho" : "verde"}
+          href="/nao-conformidades?filtro=vencidas"
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Indicador
           rotulo="Conformidade hoje"
@@ -99,11 +145,11 @@ export default async function Painel() {
                 return (
                   <li key={r.id} className="flex items-center justify-between gap-3 py-2.5">
                     <div className="min-w-0">
-                      <Link href={`/recebimento/${r.id}`} className="link">
-                        {r.modelo.codigoRq} nº {String(r.numero).padStart(4, "0")}
+                      <Link href={r.codigoRq === CODIGO_RQ_RECEBIMENTO ? `/recebimento/${r.id}` : `/rqs/${r.id}`} className="link">
+                        {r.codigoRq} nº {String(r.numero).padStart(4, "0")}
                       </Link>
                       <div className="truncate text-sm text-slate-600">
-                        {c.materiaPrima?.nome} · {c.codigoLoteInterno} · {r.nomeAssinatura}
+                        {r.codigoRq === CODIGO_RQ_RECEBIMENTO ? `${c.materiaPrima?.nome} · ${c.codigoLoteInterno}` : r.modelo.titulo} · {r.nomeAssinatura}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
@@ -147,6 +193,28 @@ export default async function Painel() {
           ) : (
             <Vazio>Sem produção nos últimos 30 dias.</Vazio>
           )}
+        </section>
+
+        <section className="cartao lg:col-span-2">
+          <h2 className="mb-3 font-semibold">Conformidade por POP (30 dias)</h2>
+          <ul className="grid gap-x-8 gap-y-3 md:grid-cols-2">
+            {conformidadePop.map((p) => (
+              <li key={p.numeroPop}>
+                <div className="flex justify-between gap-2 text-sm">
+                  <span className="truncate font-medium">
+                    POP {String(p.numeroPop).padStart(2, "0")} · {p.titulo}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-slate-600">{p.pct === null ? "sem registros" : `${p.pct}% · ${p.total} RQ`}</span>
+                </div>
+                <div className="mt-1 h-2 rounded-full bg-slate-100">
+                  <div
+                    className={`h-2 rounded-full ${p.pct === null ? "" : p.pct >= 95 ? "bg-emerald-500" : p.pct >= 80 ? "bg-amber-500" : "bg-red-500"}`}
+                    style={{ width: `${p.pct ?? 0}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section className="cartao lg:col-span-2">

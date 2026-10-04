@@ -4,7 +4,9 @@
  */
 import { PrismaClient, type Perfil } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { CATALOGO_POPS } from "../src/lib/rq/catalogo";
+import { sincronizarCatalogo } from "../src/lib/rq/sincronizar";
+import { registrarExecucaoRq, modeloEfetivo } from "../src/lib/servicos/rq";
+import { chaveDia, meiaNoite, partesBrt } from "../src/lib/agenda";
 import { salvarProduto, aprovarFormula } from "../src/lib/servicos/formula";
 import { registrarRecebimento } from "../src/lib/servicos/recebimento";
 import { registrarOrdem, registrarExpedicao, lotesDisponiveis } from "../src/lib/servicos/producao";
@@ -12,25 +14,8 @@ import type { Ctx } from "../src/lib/auth";
 
 const prisma = new PrismaClient();
 
-async function seedPops() {
-  for (const pop of CATALOGO_POPS) {
-    const p = await prisma.pop.upsert({
-      where: { numeroPop: pop.numeroPop },
-      update: { titulo: pop.titulo, descricaoProcedimento: pop.descricao },
-      create: { numeroPop: pop.numeroPop, titulo: pop.titulo, descricaoProcedimento: pop.descricao },
-    });
-    for (const rq of pop.rqs) {
-      await prisma.rqModelo.upsert({
-        where: { codigoRq: rq.codigoRq },
-        update: { titulo: rq.titulo, frequencia: rq.frequencia, campos: rq.campos },
-        create: { popId: p.id, codigoRq: rq.codigoRq, titulo: rq.titulo, frequencia: rq.frequencia, campos: rq.campos },
-      });
-    }
-  }
-}
-
 async function main() {
-  await seedPops();
+  await sincronizarCatalogo(prisma);
   if (await prisma.tenant.count()) {
     console.log("POPs atualizados. Empresas já existem — demonstração não recriada.");
     return;
@@ -45,6 +30,7 @@ async function main() {
       registroMapa: "SP-12345-1",
       cidadeUf: "Ribeirão Preto/SP",
       tipoPlano: "PROFISSIONAL",
+      createdAt: new Date(Date.now() - 14 * 86400_000), // demonstração com duas semanas de histórico
     },
   });
   const fabrica2 = await prisma.tenant.create({
@@ -57,19 +43,21 @@ async function main() {
     },
   });
 
-  const usuarios: { nome: string; email: string; perfil: Perfil; reg?: string; cargo: string; tenants: string[] }[] = [
+  const usuarios: { nome: string; email: string; perfil: Perfil; reg?: string; cargo: string; tenants: string[]; alertas?: boolean }[] = [
     { nome: "Carlos Mendes", email: "ceo@nutripec.demo", perfil: "CEO", cargo: "Diretor", tenants: [fabrica.id] },
-    { nome: "Dra. Ana Ribeiro", email: "rt@nutripec.demo", perfil: "RT", reg: "CRMV-SP 12345", cargo: "Médica Veterinária RT", tenants: [fabrica.id] },
+    { nome: "Dra. Ana Ribeiro", email: "rt@nutripec.demo", perfil: "RT", reg: "CRMV-SP 12345", cargo: "Médica Veterinária RT", tenants: [fabrica.id], alertas: true },
     { nome: "João Silva", email: "operador@nutripec.demo", perfil: "OPERADOR", cargo: "Operador de recebimento", tenants: [fabrica.id] },
     { nome: "Marina Costa", email: "consultor@nutripec.demo", perfil: "CONSULTOR", reg: "CRZ 4567", cargo: "Consultora BPF", tenants: [fabrica.id, fabrica2.id] },
     { nome: "Fiscal MAPA", email: "auditor@nutripec.demo", perfil: "AUDITOR", cargo: "Auditor Fiscal Federal Agropecuário", tenants: [fabrica.id] },
   ];
   const ids: Record<string, string> = {};
   for (const u of usuarios) {
-    const user = await prisma.user.create({ data: { nome: u.nome, email: u.email, senhaHash, registroProfissional: u.reg } });
+    const user = await prisma.user.create({
+      data: { nome: u.nome, email: u.email, senhaHash, registroProfissional: u.reg, telefone: u.alertas ? "5516999990000" : null },
+    });
     ids[u.perfil] = user.id;
     for (const tenantId of u.tenants) {
-      await prisma.membership.create({ data: { userId: user.id, tenantId, perfil: u.perfil, cargo: u.cargo } });
+      await prisma.membership.create({ data: { userId: user.id, tenantId, perfil: u.perfil, cargo: u.cargo, receberAlertas: !!u.alertas } });
     }
   }
 
@@ -218,6 +206,39 @@ async function main() {
     producaoOrdemId: ordem.id, clienteNome: "Agropecuária Três Irmãos", clienteDocumento: "66.777.888/0001-99", clienteCidadeUf: "Bebedouro/SP",
     numeroNf: "45002", quantidadeSacas: 40,
   });
+
+  // Histórico dos RQs de rotina nos últimos dias (com algumas falhas para a agenda mostrar atrasos)
+  const ok = (campos: { id: string; tipo: string; min?: number; max?: number }[]) =>
+    Object.fromEntries(
+      campos.map((c) => [c.id, { valor: c.tipo === "conformidade" ? "C" : c.tipo === "numerico" ? (c.min ?? 0) + ((c.max ?? (c.min ?? 0) + 2) - (c.min ?? 0)) / 2 : "ok" }]),
+    );
+  const hoje = partesBrt(new Date());
+  for (let diasAtras = 13; diasAtras >= 1; diasAtras--) {
+    const dia = meiaNoite(hoje.a, hoje.m, hoje.d - diasAtras);
+    for (const codigo of ["RQ 2.1", "RQ 3.1", "RQ 5.1"]) {
+      if ((codigo === "RQ 5.1" && diasAtras === 2) || (codigo === "RQ 2.1" && diasAtras === 1)) continue; // falhas propositais
+      const m = (await modeloEfetivo(fabrica.id, codigo))!;
+      await registrarExecucaoRq(
+        ctx("OPERADOR"),
+        { modeloId: m.id, referencia: chaveDia(dia), respostas: ok(m.campos as never), fotos: [] },
+        { agora: new Date(dia.getTime() + 8 * 3600_000) },
+      );
+    }
+  }
+  const m61 = (await modeloEfetivo(fabrica.id, "RQ 6.1"))!;
+  await registrarExecucaoRq(
+    ctx("OPERADOR"),
+    {
+      modeloId: m61.id,
+      referencia: chaveDia(meiaNoite(hoje.a, hoje.m, hoje.d - 10)),
+      respostas: {
+        iscas_integras: { valor: "NC", descricaoNc: "Porta-isca nº 14 (doca) quebrado e sem tampa.", acaoCorretiva: "Porta-isca substituído e empresa controladora acionada." },
+        capturas: { valor: 0 },
+      },
+      fotos: [],
+    },
+    { agora: new Date(meiaNoite(hoje.a, hoje.m, hoje.d - 10).getTime() + 10 * 3600_000) },
+  );
 
   console.log("Demonstração criada. Usuários (senha nutripec123):");
   for (const u of usuarios) console.log(`  ${u.perfil.padEnd(9)} ${u.email}`);

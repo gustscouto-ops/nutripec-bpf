@@ -2,16 +2,14 @@ import { Prisma, type LoteMateriaPrima, type RqExecucao } from "@prisma/client";
 import { prisma, num } from "../db";
 import { registrarAuditoria } from "../audit";
 import { ErroNegocio } from "../erros";
-import { hashAssinatura, sha256 } from "../hash";
+import { hashAssinatura } from "../hash";
 import { gerarCodigoUnico } from "../lote";
+import { periodoDoDia } from "../agenda";
 import { avaliarRespostas, type CampoRq, type Respostas } from "../rq/campos";
-import { salvarArquivo } from "../storage";
 import type { Ctx } from "../auth";
+import { CODIGO_RQ_RECEBIMENTO, MAX_FOTOS, abrirNcsDaExecucao, gravarFotos, modeloEfetivo, proximoNumero, travarRq, validarFotos } from "./rq";
 
-export const CODIGO_RQ_RECEBIMENTO = "RQ 1.2";
-export const MAX_FOTOS = 5;
-const MAX_BYTES_FOTO = 8 * 1024 * 1024;
-const TIPOS_FOTO: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+export { CODIGO_RQ_RECEBIMENTO, MAX_FOTOS };
 
 export type RecebimentoInput = {
   fornecedorId: string;
@@ -73,20 +71,17 @@ export async function registrarRecebimento(ctx: Ctx, input: RecebimentoInput) {
   const numeroNf = input.numeroNf?.trim();
   if (!numeroNf) throw new ErroNegocio("Informe o número da nota fiscal.", { numeroNf: "Obrigatório" });
   if (!(input.quantidadeKg > 0)) throw new ErroNegocio("Informe o peso total da carga.", { quantidadeKg: "Obrigatório" });
-  if (input.fotos.length > MAX_FOTOS) throw new ErroNegocio(`Envie no máximo ${MAX_FOTOS} fotos.`);
-  for (const f of input.fotos) {
-    if (!TIPOS_FOTO[f.mimeType]) throw new ErroNegocio("Formato de foto não suportado (use JPG, PNG ou WEBP).");
-    if (f.conteudo.length > MAX_BYTES_FOTO) throw new ErroNegocio("Foto acima de 8 MB.");
-  }
+  validarFotos(input.fotos);
 
   const [tenant, modelo, vinculo] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
-    prisma.rqModelo.findUniqueOrThrow({ where: { codigoRq: CODIGO_RQ_RECEBIMENTO } }),
+    modeloEfetivo(ctx.tenantId, CODIGO_RQ_RECEBIMENTO),
     prisma.fornecedorMateriaPrima.findUnique({
       where: { fornecedorId_materiaPrimaId: { fornecedorId: input.fornecedorId, materiaPrimaId: input.materiaPrimaId } },
       include: { fornecedor: true, materiaPrima: true },
     }),
   ]);
+  if (!modelo || !modelo.ativo) throw new ErroNegocio("RQ 1.2 indisponível.");
   if (!vinculo || vinculo.fornecedor.tenantId !== ctx.tenantId || vinculo.materiaPrima.tenantId !== ctx.tenantId) {
     throw new ErroNegocio("Esta matéria-prima não está vinculada a este fornecedor.");
   }
@@ -100,30 +95,22 @@ export async function registrarRecebimento(ctx: Ctx, input: RecebimentoInput) {
     umidadeMaxPct: mp.umidadeMaxPct === null ? null : num(mp.umidadeMaxPct),
     temperaturaMaxC: mp.temperaturaMaxC === null ? null : num(mp.temperaturaMaxC),
   };
-  const avaliacao = avaliarRespostas(modelo.campos as unknown as CampoRq[], input.respostas ?? {}, limites);
+  const campos = modelo.campos as unknown as CampoRq[];
+  const avaliacao = avaliarRespostas(campos, input.respostas ?? {}, limites);
   if (Object.keys(avaliacao.erros).length) {
     throw new ErroNegocio("Checklist incompleto. Revise os itens destacados.", avaliacao.erros);
   }
 
   // Fotos são gravadas antes da transação; o hash de cada uma entra no conteúdo assinado.
-  const fotos = await Promise.all(
-    input.fotos.map(async (f) => ({
-      fotoUrl: await salvarArquivo(ctx.tenantId, f.conteudo, TIPOS_FOTO[f.mimeType]),
-      mimeType: f.mimeType,
-      descricao: f.descricao?.slice(0, 200) || null,
-      hashArquivo: sha256(f.conteudo),
-    })),
-  );
+  const fotos = await gravarFotos(ctx.tenantId, input.fotos);
 
   for (let tentativa = 0; ; tentativa++) {
     try {
       return await prisma.$transaction(async (tx) => {
         const agora = new Date();
-        const ultimo = await tx.rqExecucao.aggregate({
-          where: { tenantId: ctx.tenantId, rqModeloId: modelo.id },
-          _max: { numero: true },
-        });
-        const numero = (ultimo._max.numero ?? 0) + 1;
+        const periodo = periodoDoDia(agora);
+        await travarRq(tx, ctx.tenantId, modelo.codigoRq);
+        const numero = await proximoNumero(tx, ctx.tenantId, modelo.codigoRq);
         const codigoLoteInterno = await gerarCodigoUnico(
           tenant.regraLoteMp,
           { PREFIXO: mp.prefixoLote, data: agora },
@@ -154,6 +141,7 @@ export async function registrarRecebimento(ctx: Ctx, input: RecebimentoInput) {
           tenantId: ctx.tenantId,
           rq: modelo.codigoRq,
           versaoModelo: modelo.versao,
+          campos,
           numero,
           dataHora: agora.toISOString(),
           assinante: { id: ctx.userId, nome: ctx.nome, perfil: ctx.perfil },
@@ -168,7 +156,12 @@ export async function registrarRecebimento(ctx: Ctx, input: RecebimentoInput) {
           data: {
             tenantId: ctx.tenantId,
             rqModeloId: modelo.id,
+            codigoRq: modelo.codigoRq,
+            versaoModelo: modelo.versao,
+            campos: campos as unknown as Prisma.InputJsonValue,
             numero,
+            referenciaInicio: periodo.inicio,
+            referenciaFim: periodo.fim,
             userIdAssinatura: ctx.userId,
             nomeAssinatura: ctx.nome,
             perfilAssinatura: ctx.perfil,
@@ -206,7 +199,12 @@ export async function registrarRecebimento(ctx: Ctx, input: RecebimentoInput) {
 
         await registrarAuditoria(tx, ctx, { tabela: "rqExecucao", registroId: execucao.id, acao: "ASSINATURA", depois: { ...execucao, fotos } });
         await registrarAuditoria(tx, ctx, { tabela: "loteMateriaPrima", registroId: lote.id, acao: "CREATE", depois: lote });
-        return { execucao, lote };
+        const ncs = await abrirNcsDaExecucao(tx, ctx, execucao, modelo, avaliacao, {
+          fornecedorId: vinculo.fornecedor.id,
+          loteReferencia: codigoLoteInterno,
+          prefixoTitulo: `${mp.nomeComercial} (${codigoLoteInterno})`,
+        });
+        return { execucao, lote, ncs };
       });
     } catch (e) {
       const conflito = e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";

@@ -1,7 +1,7 @@
 # NutriPEC Gestão BPF
 
 SaaS de Gestão da Qualidade e Boas Práticas de Fabricação para fábricas de ração e suplementos,
-ancorado na **IN MAPA nº 04/2007**. Este repositório contém a **Fase 1 (MVP)** do roadmap.
+ancorado na **IN MAPA nº 04/2007**. Este repositório contém as **Fases 1 (MVP) e 2 (motor completo dos 9 POPs)** do roadmap.
 
 ## O que a Fase 1 entrega
 
@@ -16,7 +16,7 @@ ancorado na **IN MAPA nº 04/2007**. Este repositório contém a **Fase 1 (MVP)*
 | Expedição e rastreabilidade bidirecional (para trás e recall para frente) | ✅ |
 | Trilha de auditoria imutável (trigger no PostgreSQL) | ✅ |
 | Painel de gestão à vista (conformidade, quarentena, produção, NC por fornecedor) | ✅ |
-| 9 POPs e RQs padrão pré-cadastrados (definição dos campos em JSON) | ✅ (execução na Fase 2) |
+| 9 POPs e RQs padrão pré-cadastrados (definição dos campos em JSON) | ✅ |
 | PWA instalável, cache offline das telas e rascunho do RQ no aparelho | ✅ (assinatura exige rede) |
 | Espelho do rótulo a partir da fórmula | ✅ prévia (ZPL na Fase 3) |
 
@@ -24,6 +24,19 @@ ancorado na **IN MAPA nº 04/2007**. Este repositório contém a **Fase 1 (MVP)*
 
 Next.js 15 (App Router, Server Actions) · React 19 · Tailwind CSS 4 · PostgreSQL 16 · Prisma 6 ·
 PDFKit (PDF dos RQs) · jose (sessão JWT em cookie httpOnly) · bcrypt · Vitest.
+
+## O que a Fase 2 entrega
+
+| Módulo | Situação |
+|---|---|
+| Execução de **todos os RQs dos 9 POPs** com o mesmo checklist, fotos, rascunho no aparelho, assinatura e PDF | ✅ |
+| **Tarefas do dia**: agenda calculada pela frequência (diária, semanal com dia de prazo, quinzenal, mensal com dia de prazo, semestral, anual), pendentes, atrasados e "quando ocorre" | ✅ |
+| Registro fora do prazo marcado como atrasado (tela, histórico e PDF); um registro por período | ✅ |
+| **Não conformidades**: abertas automaticamente por item NC de qualquer RQ (inclusive RQ 1.2, com fornecedor e lote) ou manualmente (reclamação, auditoria, fiscalização); ciclo ação imediata → causa raiz e ação preventiva com prazo → execução → verificação de eficácia assinada pelo RT; ineficaz volta ao tratamento; NC encerrada é imutável no banco | ✅ |
+| **Customizador de formulários** (RT/Consultor): título, frequência, prazo, itens (conformidade, medição com faixa, texto), ordem, obrigatoriedade, ativar/desativar, criar RQ novo. O padrão do sistema nunca é alterado: a empresa ganha versão própria, cada mudança de itens sobe a versão e registros assinados guardam a cópia dos campos da época | ✅ |
+| **Instruções de Trabalho (ITs)** por POP: visão do operador (passos grandes e alertas de segurança), impressão e edição com versão da empresa; links a partir do RQ | ✅ |
+| Painel do RT: RQs atrasados e pendentes, NCs abertas e vencidas, conformidade por POP (30 dias) | ✅ |
+| **Alertas diários** por e-mail (SMTP) e WhatsApp (gateway HTTP), destinatários por usuário, envio de teste e histórico | ✅ |
 
 ## Rodando localmente
 
@@ -46,7 +59,21 @@ Usuários de demonstração (senha `nutripec123`):
 | consultor@nutripec.demo | Consultor de BPF (acessa 2 fábricas) |
 | auditor@nutripec.demo | Auditor fiscal (somente leitura) |
 
-Testes: `npm test` (regras puras + integração contra o banco do `DATABASE_URL`).
+Testes: `npm test` (regras puras, agenda e integração contra o banco do `DATABASE_URL`; 50 testes).
+
+### Alertas (opcional)
+
+Sem configuração, os envios ficam registrados como "simulados" em Configurações. Variáveis:
+
+| Variável | Uso |
+|---|---|
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | envio de e-mail |
+| `WHATSAPP_API_URL`, `WHATSAPP_API_TOKEN` | gateway que recebe `POST {"to","message"}` (Z-API, Twilio via proxy, Meta Cloud API via adaptador) |
+| `CRON_SECRET` | protege `GET /api/cron/alertas` (cabeçalho `Authorization: Bearer <segredo>`) |
+| `APP_URL` | endereço público usado nos links das mensagens |
+
+Agende uma chamada diária, por exemplo às 7h: `curl -H "Authorization: Bearer $CRON_SECRET" https://seu-dominio/api/cron/alertas`.
+O sistema envia no máximo um resumo por dia para cada destinatário.
 
 ## Decisões de arquitetura
 
@@ -67,11 +94,18 @@ Testes: `npm test` (regras puras + integração contra o banco do `DATABASE_URL`
 - **Lote interno configurável** por empresa (`{PREFIXO}-{DDMMAAAA}` → `BIC-03102026`; repetição no dia recebe `-2`),
   sempre no fuso de Brasília.
 - **PDF gerado sob demanda** a partir do registro imutável (PDFKit, sem Chromium no servidor). Cada emissão é auditada.
+- **Agenda sem tabela de tarefas** (`src/lib/agenda.ts`, `tarefas()` em `src/lib/servicos/rq.ts`): os períodos são
+  calculados a partir da frequência do modelo vigente e cruzados com os registros (`referencia_inicio`). Mudar a
+  frequência vale na hora, sem migrar tarefas. Atrasos são cobrados por até 7 dias (diários), 2 semanas (semanais) ou
+  1 período (demais), e nunca antes da data de cadastro da empresa.
+- **Modelos globais × da empresa**: `rq_modelos` e `instrucoes_trabalho` com `tenant_id` nulo são o padrão; a primeira
+  personalização cria a cópia da empresa (`origem_id`). Índices únicos parciais garantem um padrão e uma cópia por código.
+- **Numeração** por empresa e código de RQ (e das NCs) com `pg_advisory_xact_lock`, sem buracos nem duplicidade.
 - **Arquivos**: `src/lib/storage.ts` grava em disco; trocar por S3/GCS é mudar só esse arquivo.
 
-## Próximos passos (Fase 2)
+## Próximos passos (Fase 3)
 
-- Execução dos demais RQs com o mesmo motor (`Checklist` já é genérico) e agenda diária/semanal/atrasados.
-- Customizador de formulários para o RT.
-- Alertas de pendências por e-mail/WhatsApp e tratamento de NC com ação preventiva.
+- Etiquetas ZPL e rotulagem completa a partir da fórmula aprovada.
 - Fila offline com assinatura posterior (decidir modelo jurídico: PIN do aparelho ou reassinatura online).
+- Anexos em NCs e ITs (fotos por passo), auditoria interna com checklist da IN 04/2007 e relatório para fiscalização.
+- Cobrança/assinatura do SaaS por fábrica.

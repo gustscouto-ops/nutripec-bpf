@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { exigirCtx } from "@/lib/auth";
 import { atualizarAuditado } from "@/lib/audit";
 import { ErroNegocio, executar } from "@/lib/erros";
+import { enviarAlertas } from "@/lib/servicos/alertas";
 
 export async function salvarEmpresa(_: unknown, form: FormData) {
   const r = await executar(async () => {
@@ -29,4 +30,14 @@ export async function salvarEmpresa(_: unknown, form: FormData) {
   }, "Configurações salvas.");
   if (r.ok) revalidatePath("/", "layout");
   return r;
+}
+
+/** Dispara agora o resumo de pendências desta empresa (ignora o limite de um envio por dia). */
+export async function acaoTestarAlertas() {
+  return executar(async () => {
+    const ctx = await exigirCtx("empresa:configurar");
+    const relatorio = await enviarAlertas({ tenantId: ctx.tenantId, forcar: true });
+    revalidatePath("/configuracoes");
+    return relatorio.length;
+  });
 }
