@@ -130,7 +130,8 @@ export function resolverReferencia(modelo: Pick<RqModelo, "frequencia" | "diaSem
 }
 
 /** Registro assinado de qualquer RQ (exceto o RQ 1.2, que tem fluxo próprio de recebimento). */
-export async function registrarExecucaoRq(ctx: Ctx, input: ExecucaoInput, opcoes: { agora?: Date } = {}) {
+/** Registra e assina um RQ. Com `opcoes.tx`, roda dentro da transação de quem chama (ex.: simulado de recall). */
+export async function registrarExecucaoRq(ctx: Ctx, input: ExecucaoInput, opcoes: { agora?: Date; tx?: Tx } = {}) {
   const modelo = await prisma.rqModelo.findFirst({
     where: { id: input.modeloId, OR: [{ tenantId: null }, { tenantId: ctx.tenantId }] },
     include: { pop: true },
@@ -147,7 +148,7 @@ export async function registrarExecucaoRq(ctx: Ctx, input: ExecucaoInput, opcoes
   if (Object.keys(avaliacao.erros).length) throw new ErroNegocio("Checklist incompleto. Revise os itens destacados.", avaliacao.erros);
   const fotos = await gravarFotos(ctx.tenantId, input.fotos);
 
-  return prisma.$transaction(async (tx) => {
+  const corpo = async (tx: Tx) => {
     await travarRq(tx, ctx.tenantId, modelo.codigoRq);
     if (agendada(modelo.frequencia)) {
       const existente = await tx.rqExecucao.findFirst({ where: { tenantId: ctx.tenantId, codigoRq: modelo.codigoRq, referenciaInicio: periodo.inicio } });
@@ -197,7 +198,8 @@ export async function registrarExecucaoRq(ctx: Ctx, input: ExecucaoInput, opcoes
     await registrarAuditoria(tx, ctx, { tabela: "rqExecucao", registroId: execucao.id, acao: "ASSINATURA", depois: { ...execucao, fotos } });
     const ncs = await abrirNcsDaExecucao(tx, ctx, execucao, modelo, avaliacao);
     return { execucao, ncs };
-  });
+  };
+  return opcoes.tx ? corpo(opcoes.tx) : prisma.$transaction(corpo);
 }
 
 // ───────────────────────── Agenda / lista de tarefas ─────────────────────────

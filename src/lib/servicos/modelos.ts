@@ -2,6 +2,7 @@ import { Prisma, type Frequencia, type InstrucaoTrabalho, type RqModelo } from "
 import { prisma } from "../db";
 import { atualizarAuditado, criarAuditado } from "../audit";
 import { ErroNegocio } from "../erros";
+import { jsonCanonico } from "../hash";
 import type { CampoRq } from "../rq/campos";
 import type { PassoIt } from "../rq/instrucoes";
 import type { Ctx } from "../auth";
@@ -56,18 +57,6 @@ export function normalizarCampos(entrada: Partial<CampoRq>[]): CampoRq[] {
   });
 }
 
-/** JSON com chaves ordenadas: o jsonb do PostgreSQL não preserva a ordem das chaves. */
-function canonico(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(canonico).join(",")}]`;
-  if (v && typeof v === "object") {
-    return `{${Object.keys(v)
-      .sort()
-      .map((k) => `${JSON.stringify(k)}:${canonico((v as Record<string, unknown>)[k])}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(v);
-}
-
 export type ModeloInput = {
   titulo: string;
   frequencia: Frequencia;
@@ -91,7 +80,7 @@ export async function salvarModelo(ctx: Ctx, modeloId: string, input: ModeloInpu
     throw new ErroNegocio("O RQ 1.2 acontece a cada carga recebida: a frequência é sempre 'quando ocorre'.");
   }
   const campos = normalizarCampos(input.campos);
-  const camposMudaram = canonico(campos) !== canonico(atual.campos);
+  const camposMudaram = jsonCanonico(campos) !== jsonCanonico(atual.campos) // jsonb não preserva a ordem das chaves;
   const dados = {
     titulo,
     frequencia: input.frequencia,

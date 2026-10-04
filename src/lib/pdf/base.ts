@@ -93,3 +93,57 @@ export function paraBuffer(doc: Doc): Promise<Buffer> {
 const TZ = "America/Sao_Paulo";
 export const fmtDataHora = (d: Date | string) => new Date(d).toLocaleString("pt-BR", { timeZone: TZ, dateStyle: "short", timeStyle: "medium" });
 export const fmtData = (d: Date | string | null | undefined) => (d ? new Date(d).toLocaleDateString("pt-BR", { timeZone: TZ }) : "—");
+
+export type Coluna = { titulo: string; peso: number; alinhar?: "left" | "right" | "center" };
+
+/** Tabela simples com cabeçalho repetido a cada página. */
+export function tabela(doc: Doc, colunas: Coluna[], linhas: (string | number | null | undefined)[][], opcoes: { destaque?: (i: number) => boolean } = {}) {
+  const w = largura(doc);
+  const total = colunas.reduce((s, c) => s + c.peso, 0);
+  const larguras = colunas.map((c) => (c.peso / total) * w);
+  const xs = larguras.map((_, i) => MARGEM + larguras.slice(0, i).reduce((s, l) => s + l, 0));
+  const cabecalhoTabela = () => {
+    const y = doc.y;
+    doc.rect(MARGEM, y, w, 16).fill("#f1f5f9");
+    doc.fillColor(COR.suave).font("Helvetica-Bold").fontSize(7.5);
+    colunas.forEach((c, i) => doc.text(c.titulo.toUpperCase(), xs[i] + 4, y + 5, { width: larguras[i] - 8, align: c.alinhar ?? "left", lineBreak: false }));
+    doc.y = y + 19;
+  };
+  garantirEspaco(doc, 40);
+  cabecalhoTabela();
+  linhas.forEach((linha, li) => {
+    doc.font("Helvetica").fontSize(8.5);
+    const altura = Math.max(...linha.map((v, i) => doc.heightOfString(String(v ?? "—"), { width: larguras[i] - 8 }))) + 6;
+    if (doc.y + altura > doc.page.height - MARGEM - 30) {
+      doc.addPage();
+      cabecalhoTabela();
+    }
+    const y = doc.y;
+    if (opcoes.destaque?.(li)) doc.rect(MARGEM, y - 2, w, altura).fill("#fef2f2");
+    doc.fillColor(COR.texto).font("Helvetica").fontSize(8.5);
+    linha.forEach((v, i) => doc.text(String(v ?? "—"), xs[i] + 4, y + 1, { width: larguras[i] - 8, align: colunas[i].alinhar ?? "left" }));
+    doc.y = y + altura;
+    doc.moveTo(MARGEM, doc.y - 1).lineTo(MARGEM + w, doc.y - 1).strokeColor(COR.linha).lineWidth(0.5).stroke();
+  });
+  doc.x = MARGEM;
+  doc.moveDown(0.3);
+}
+
+/** Bloco de assinatura eletrônica com hash. */
+export function blocoAssinatura(doc: Doc, a: { nome: string; detalhe: string; hash: string }) {
+  const w = largura(doc);
+  garantirEspaco(doc, 90);
+  const ya = doc.y;
+  doc.roundedRect(MARGEM, ya, w, 82, 6).strokeColor(COR.marca).lineWidth(1).stroke();
+  doc.fillColor(COR.texto).font("Helvetica-Bold").fontSize(10).text(a.nome, MARGEM + 12, ya + 10);
+  doc
+    .font("Helvetica")
+    .fontSize(8.5)
+    .text(a.detalhe, { width: w - 24 })
+    .text("Assinado eletronicamente mediante senha pessoal e intransferível. Integridade verificável pelo hash SHA-256 do conteúdo:", { width: w - 24 })
+    .font("Courier")
+    .fontSize(8)
+    .text(a.hash, { width: w - 24 });
+  doc.y = ya + 90;
+  doc.x = MARGEM;
+}

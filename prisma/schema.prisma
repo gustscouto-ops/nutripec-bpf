@@ -54,6 +54,7 @@ model Tenant {
   naoConformidades NaoConformidade[]
   instrucoes       InstrucaoTrabalho[]
   notificacoes     Notificacao[]
+  recalls          RecallRegistro[]
 
   @@map("tenants")
 }
@@ -204,6 +205,9 @@ model Produto {
   composicaoBasica  String?       @map("composicao_basica")
   substitutivos     String?
   restricoes        String? // restrições de uso / período de carência
+  registroProduto   String?       @map("registro_produto") // nº de registro do produto no MAPA (ou "isento")
+  validadeDias      Int?          @map("validade_dias") // prazo de validade a partir da fabricação
+  conservacao       String? // instruções de armazenamento impressas no rótulo
   // [{ "nutriente": "Proteína Bruta (mín.)", "valor": 130, "unidade": "g/kg" }]
   niveisGarantia    Json          @default("[]") @map("niveis_garantia")
   statusFormula     StatusFormula @default(RASCUNHO) @map("status_formula")
@@ -326,6 +330,7 @@ model RqExecucao {
   loteMp LoteMateriaPrima?
 
   naoConformidades NaoConformidade[]
+  recall           RecallRegistro?
 
   @@unique([tenantId, codigoRq, numero])
   @@index([tenantId, codigoRq, referenciaInicio])
@@ -581,4 +586,43 @@ model AuditLog {
   @@index([tenantId, tabelaAfetada, registroId])
   @@index([tenantId, createdAt])
   @@map("audit_logs")
+}
+
+enum TipoRecall {
+  SIMULADO
+  REAL
+}
+
+enum AlvoRecall {
+  LOTE_MP
+  LOTE_PRODUTO
+}
+
+/// Simulado (POP 08 / RQ 8.1) ou recolhimento real. Registro assinado e imutável com a fotografia do rastreio.
+model RecallRegistro {
+  id           String     @id @default(cuid())
+  tenantId     String     @map("tenant_id")
+  numero       Int
+  tipo         TipoRecall
+  alvoTipo     AlvoRecall @map("alvo_tipo")
+  alvoId       String     @map("alvo_id")
+  alvoCodigo   String     @map("alvo_codigo")
+  motivo       String
+  iniciadoEm   DateTime   @map("iniciado_em")
+  concluidoEm  DateTime   @default(now()) @map("concluido_em")
+  duracaoMin   Int        @map("duracao_min")
+  resultado    Json // árvore entrada → produção → saída no momento da assinatura
+  completo     Boolean
+  pendencias   Json       @default("[]")
+  userId       String     @map("user_id")
+  userNome     String     @map("user_nome")
+  perfil       Perfil
+  hash         String
+  rqExecucaoId String?    @unique @map("rq_execucao_id")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  rqExecucao RqExecucao? @relation(fields: [rqExecucaoId], references: [id])
+
+  @@unique([tenantId, numero])
+  @@map("recalls")
 }

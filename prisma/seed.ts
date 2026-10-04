@@ -28,6 +28,7 @@ async function main() {
       nomeFantasia: "Nutripec Rações",
       cnpj: "12.345.678/0001-90",
       registroMapa: "SP-12345-1",
+      endereco: "Rodovia Anhanguera, km 312, Distrito Industrial",
       cidadeUf: "Ribeirão Preto/SP",
       tipoPlano: "PROFISSIONAL",
       createdAt: new Date(Date.now() - 14 * 86400_000), // demonstração com duas semanas de histórico
@@ -121,6 +122,9 @@ async function main() {
     modoUso: "Fornecer 1% do peso vivo/dia, misturado ao volumoso. Adaptação gradual de 14 dias.",
     composicaoBasica: "Milho moído, farelo de soja, calcário calcítico, fosfato bicálcico, cloreto de sódio, premix mineral e vitamínico, ureia pecuária.",
     restricoes: "Contém ureia: não fornecer a equinos, aves e suínos. Proibido o uso na alimentação de ruminantes de proteínas de origem animal.",
+    registroProduto: "SP-12345 00130-3",
+    validadeDias: 90,
+    conservacao: "Conservar em local seco, arejado e ao abrigo da luz solar, sobre estrados.",
     niveisGarantia: [
       { nutriente: "Umidade (máx.)", valor: 130, unidade: "g/kg", tipo: "max" },
       { nutriente: "Proteína Bruta (mín.)", valor: 220, unidade: "g/kg", tipo: "min" },

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirCtx } from "@/lib/auth";
+import { pode } from "@/lib/permissions";
 import { rastrearParaFrente } from "@/lib/servicos/rastreabilidade";
 import { num } from "@/lib/db";
 import { Alerta, Cabecalho, Dl, Selo, Vazio } from "@/components/ui";
@@ -17,7 +18,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { lote } = r;
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <Cabecalho titulo="Rastreabilidade para frente (recall)" subtitulo={`${ctx.tenantNome} · da matéria-prima ao cliente`} acoes={<BotaoImprimir />} />
+      <Cabecalho titulo="Rastreabilidade para frente (recall)" subtitulo={`${ctx.tenantNome} · da matéria-prima ao cliente`} acoes={
+          <>
+            <BotaoImprimir />
+            {pode(ctx.perfil, "recall:registrar") && (
+              <Link href={`/recall/novo?mp=${id}&inicio=${Date.now()}`} className="btn-primario">
+                Simular recall deste lote
+              </Link>
+            )}
+          </>
+        } />
 
       <section className="cartao">
         <div className="mb-4 flex flex-wrap items-center gap-3">

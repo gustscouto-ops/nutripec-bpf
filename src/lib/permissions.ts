@@ -10,10 +10,12 @@ export type Permissao =
   | "auditoria:ver"
   | "nc:tratar"
   | "nc:encerrar"
-  | "formulario:customizar";
+  | "formulario:customizar"
+  | "recall:registrar"
+  | "dossie:gerar";
 
 const MATRIZ: Record<Perfil, Permissao[]> = {
-  CEO: ["cadastros:editar", "operacao:registrar", "usuarios:gerenciar", "empresa:configurar", "auditoria:ver", "nc:tratar"],
+  CEO: ["cadastros:editar", "operacao:registrar", "usuarios:gerenciar", "empresa:configurar", "auditoria:ver", "nc:tratar", "dossie:gerar"],
   RT: [
     "cadastros:editar",
     "formula:aprovar",
@@ -24,6 +26,8 @@ const MATRIZ: Record<Perfil, Permissao[]> = {
     "nc:tratar",
     "nc:encerrar",
     "formulario:customizar",
+    "recall:registrar",
+    "dossie:gerar",
   ],
   CONSULTOR: [
     "cadastros:editar",
@@ -36,9 +40,11 @@ const MATRIZ: Record<Perfil, Permissao[]> = {
     "nc:tratar",
     "nc:encerrar",
     "formulario:customizar",
+    "recall:registrar",
+    "dossie:gerar",
   ],
   OPERADOR: ["operacao:registrar"],
-  AUDITOR: ["auditoria:ver"],
+  AUDITOR: ["auditoria:ver", "dossie:gerar"],
 };
 
 export function pode(perfil: Perfil, permissao: Permissao): boolean {

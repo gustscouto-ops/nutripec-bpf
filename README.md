@@ -1,7 +1,7 @@
 # NutriPEC Gestão BPF
 
 SaaS de Gestão da Qualidade e Boas Práticas de Fabricação para fábricas de ração e suplementos,
-ancorado na **IN MAPA nº 04/2007**. Este repositório contém as **Fases 1 (MVP) e 2 (motor completo dos 9 POPs)** do roadmap.
+ancorado na **IN MAPA nº 04/2007**. Este repositório contém as **Fases 1 (MVP), 2 (motor completo dos 9 POPs) e 3 (recall, rotulagem e dossiê de fiscalização)** do roadmap.
 
 ## O que a Fase 1 entrega
 
@@ -18,7 +18,7 @@ ancorado na **IN MAPA nº 04/2007**. Este repositório contém as **Fases 1 (MVP
 | Painel de gestão à vista (conformidade, quarentena, produção, NC por fornecedor) | ✅ |
 | 9 POPs e RQs padrão pré-cadastrados (definição dos campos em JSON) | ✅ |
 | PWA instalável, cache offline das telas e rascunho do RQ no aparelho | ✅ (assinatura exige rede) |
-| Espelho do rótulo a partir da fórmula | ✅ prévia (ZPL na Fase 3) |
+| Espelho do rótulo a partir da fórmula | ✅ (ZPL na Fase 3) |
 
 ## Stack
 
@@ -37,6 +37,16 @@ PDFKit (PDF dos RQs) · jose (sessão JWT em cookie httpOnly) · bcrypt · Vites
 | **Instruções de Trabalho (ITs)** por POP: visão do operador (passos grandes e alertas de segurança), impressão e edição com versão da empresa; links a partir do RQ | ✅ |
 | Painel do RT: RQs atrasados e pendentes, NCs abertas e vencidas, conformidade por POP (30 dias) | ✅ |
 | **Alertas diários** por e-mail (SMTP) e WhatsApp (gateway HTTP), destinatários por usuário, envio de teste e histórico | ✅ |
+
+## O que a Fase 3 entrega
+
+| Módulo | Situação |
+|---|---|
+| **Recall em 1 clique** (`/recall`): a partir de um lote de MP suspeito ou de um lote de produto reclamado, cruza entrada → produção → expedição; no lote de produto amplia para os outros lotes que usaram os mesmos insumos. Mostra sacas em estoque a bloquear, clientes e NFs a notificar e pendências do rastreio (lote sem RQ 1.2, consumo apontado abaixo do esperado, saldo negativo) | ✅ |
+| Simulado ou recolhimento real **assinado e imutável** (trigger no banco), com cronômetro do início à assinatura, relatório em PDF e planilha de clientes. O simulado registra sozinho o **RQ 8.1** do semestre (tempo e conclusão; com pendências vira NC) | ✅ |
+| **Rótulo MAPA** gerado da fórmula aprovada: níveis de garantia, composição (escrita ou pelos ingredientes em ordem decrescente), uso, restrições, conservação, identificação e registros, peso, lote, fabricação e validade calculada; conferência dos itens obrigatórios | ✅ |
+| **Etiquetas ZPL** (Zebra, 203 ou 300 dpi, 100×150, 100×100 ou 100×200 mm) com código de barras Code 128 do lote e quantidade = sacas produzidas; fonte reduz sozinha para caber; impressão bloqueada sem aprovação do RT; impressão pelo navegador ajustada ao tamanho; emissão auditada | ✅ |
+| **Preparar Auditoria MAPA** (`/dossie`): resumo do período com cobertura da agenda por RQ e um ZIP com índice em PDF, um PDF por RQ organizado por POP, relatório de NCs com o ciclo completo, simulados de recall, planilhas de rastreabilidade e cadastros, trilha de auditoria e `MANIFESTO-SHA256.txt` | ✅ |
 
 ## Rodando localmente
 
@@ -59,7 +69,7 @@ Usuários de demonstração (senha `nutripec123`):
 | consultor@nutripec.demo | Consultor de BPF (acessa 2 fábricas) |
 | auditor@nutripec.demo | Auditor fiscal (somente leitura) |
 
-Testes: `npm test` (regras puras, agenda e integração contra o banco do `DATABASE_URL`; 50 testes).
+Testes: `npm test` (regras puras, agenda, rótulo/ZPL e integração contra o banco do `DATABASE_URL`; 61 testes).
 
 ### Alertas (opcional)
 
@@ -101,11 +111,17 @@ O sistema envia no máximo um resumo por dia para cada destinatário.
 - **Modelos globais × da empresa**: `rq_modelos` e `instrucoes_trabalho` com `tenant_id` nulo são o padrão; a primeira
   personalização cria a cópia da empresa (`origem_id`). Índices únicos parciais garantem um padrão e uma cópia por código.
 - **Numeração** por empresa e código de RQ (e das NCs) com `pg_advisory_xact_lock`, sem buracos nem duplicidade.
+- **Recall como fotografia**: `recalls.resultado` guarda a árvore completa no momento da assinatura (com hash), então o
+  relatório não muda com movimentações posteriores. O RQ 8.1 é gravado na mesma transação (`registrarExecucaoRq` aceita `tx`).
+- **ZPL sem dependências** (`src/lib/rotulo.ts`): módulo puro que alimenta a prévia na tela e o arquivo; texto com `^CI28`
+  (UTF-8) e `^FB` para quebra de linha; os caracteres de comando `^` e `~` são removidos do conteúdo.
+- **Dossiê em ZIP** (`src/lib/servicos/pacote-dossie.ts`, JSZip): gerado sob demanda, até 366 dias por pacote, com a geração
+  registrada na trilha de auditoria junto do hash do manifesto.
 - **Arquivos**: `src/lib/storage.ts` grava em disco; trocar por S3/GCS é mudar só esse arquivo.
 
-## Próximos passos (Fase 3)
+## Próximos passos
 
-- Etiquetas ZPL e rotulagem completa a partir da fórmula aprovada.
 - Fila offline com assinatura posterior (decidir modelo jurídico: PIN do aparelho ou reassinatura online).
-- Anexos em NCs e ITs (fotos por passo), auditoria interna com checklist da IN 04/2007 e relatório para fiscalização.
+- Envio direto à impressora Zebra da fábrica (agente local ou Zebra Browser Print), já que o servidor na nuvem não alcança a rede interna.
+- Anexos em NCs e ITs (fotos por passo) e auditoria interna com checklist da IN 04/2007.
 - Cobrança/assinatura do SaaS por fábrica.

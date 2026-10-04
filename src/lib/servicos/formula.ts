@@ -21,6 +21,9 @@ export type ProdutoInput = {
   composicaoBasica?: string | null;
   substitutivos?: string | null;
   restricoes?: string | null;
+  registroProduto?: string | null;
+  validadeDias?: number | null;
+  conservacao?: string | null;
   niveisGarantia: NivelGarantia[];
   base: "percentual" | "batelada";
   itens: { materiaPrimaId: string; percentual?: number; quantidadeBateladaKg?: number }[];
@@ -74,6 +77,9 @@ export function conteudoFormula(p: Produto & { itens: { materiaPrimaId: string; 
       composicaoBasica: p.composicaoBasica,
       substitutivos: p.substitutivos,
       restricoes: p.restricoes,
+      registroProduto: p.registroProduto,
+      validadeDias: p.validadeDias,
+      conservacao: p.conservacao,
     },
   };
 }
@@ -91,6 +97,7 @@ export async function salvarProduto(ctx: Ctx, id: string | null, input: ProdutoI
   if (!input.codigo?.trim() || !input.nome?.trim()) throw new ErroNegocio("Código e nome são obrigatórios.");
   if (!(input.pesoSacariaKg > 0)) throw new ErroNegocio("Peso da sacaria deve ser maior que zero.");
   const { itens } = normalizarItens(input);
+  if (input.validadeDias !== null && input.validadeDias !== undefined && !(Number(input.validadeDias) > 0)) throw new ErroNegocio("Validade deve ser um número de dias maior que zero.");
 
   const dados = {
     codigo: input.codigo.trim().toUpperCase(),
@@ -106,6 +113,9 @@ export async function salvarProduto(ctx: Ctx, id: string | null, input: ProdutoI
     composicaoBasica: input.composicaoBasica || null,
     substitutivos: input.substitutivos || null,
     restricoes: input.restricoes || null,
+    registroProduto: input.registroProduto?.trim() || null,
+    validadeDias: input.validadeDias ? Math.round(Number(input.validadeDias)) : null,
+    conservacao: input.conservacao?.trim() || null,
     niveisGarantia: (input.niveisGarantia ?? []).filter((n) => n.nutriente?.trim()) as unknown as Prisma.InputJsonValue,
   };
 

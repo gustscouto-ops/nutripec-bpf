@@ -21,6 +21,9 @@ export type ProdutoEditor = {
   composicaoBasica: string | null;
   substitutivos: string | null;
   restricoes: string | null;
+  registroProduto: string | null;
+  validadeDias: number | null;
+  conservacao: string | null;
   niveisGarantia: NivelGarantia[];
   statusFormula: "RASCUNHO" | "AGUARDANDO_RT" | "APROVADA";
   itens: { materiaPrimaId: string; percentual: number; quantidadeBateladaKg: number }[];
@@ -61,6 +64,9 @@ export function EditorProduto({
     composicaoBasica: inicial?.composicaoBasica ?? "",
     substitutivos: inicial?.substitutivos ?? "",
     restricoes: inicial?.restricoes ?? "",
+    registroProduto: inicial?.registroProduto ?? "",
+    validadeDias: inicial?.validadeDias ? String(inicial.validadeDias) : "",
+    conservacao: inicial?.conservacao ?? "Conservar em local seco, arejado e ao abrigo da luz solar, sobre estrados.",
   });
   const [batelada, setBatelada] = useState(String(inicial?.tamanhoBateladaKg ?? 1000));
   const [base, setBase] = useState<"percentual" | "batelada">("percentual");
@@ -109,6 +115,7 @@ export function EditorProduto({
       const r = await acaoSalvarProduto(id, {
         ...dados,
         pesoSacariaKg: n(dados.pesoSacariaKg),
+        validadeDias: dados.validadeDias ? n(dados.validadeDias) : null,
         tamanhoBateladaKg: n(batelada),
         niveisGarantia: niveis.map((x) => ({ ...x, valor: Number(x.valor) })),
         base,
@@ -132,7 +139,6 @@ export function EditorProduto({
     });
   }
 
-  const nomeMp = (mid: string) => mps.find((m) => m.id === mid)?.nomeComercial ?? "";
 
   return (
     <div className="space-y-6">
@@ -229,6 +235,11 @@ export function EditorProduto({
           <div className="sm:col-span-2">
             <Campo rotulo="Restrições de uso / período de carência"><textarea value={dados.restricoes} onChange={set("restricoes")} rows={2} className="campo" /></Campo>
           </div>
+          <Campo rotulo="Nº de registro do produto no MAPA" ajuda='Ou "Produto isento de registro".'><input value={dados.registroProduto} onChange={set("registroProduto")} className="campo" /></Campo>
+          <Campo rotulo="Prazo de validade (dias após a fabricação)"><input value={dados.validadeDias} onChange={set("validadeDias")} inputMode="numeric" className="campo" /></Campo>
+          <div className="sm:col-span-2">
+            <Campo rotulo="Condições de conservação"><input value={dados.conservacao} onChange={set("conservacao")} className="campo" /></Campo>
+          </div>
         </section>
       </fieldset>
 
@@ -262,22 +273,14 @@ export function EditorProduto({
       )}
 
       {inicial && (
-        <section className="cartao">
-          <h2 className="mb-1 font-semibold">Espelho do rótulo</h2>
-          <p className="mb-3 text-sm text-slate-600">Texto regulatório gerado a partir da fórmula e dos níveis de garantia (impressão Zebra/ZPL na Fase 3).</p>
-          <div className="mx-auto max-w-md rounded-lg border-2 border-dashed border-slate-400 p-4 font-mono text-xs leading-relaxed">
-            <div className="text-center text-sm font-bold">{dados.nome.toUpperCase()}</div>
-            <div className="text-center">{dados.categoria} · {dados.especieDestino}</div>
-            <div className="mt-2 font-bold">NÍVEIS DE GARANTIA (por kg do produto)</div>
-            {niveis.map((nv, i) => <div key={i}>{nv.nutriente}: {String(nv.valor)} {nv.unidade}</div>)}
-            <div className="mt-2 font-bold">COMPOSIÇÃO BÁSICA</div>
-            <div>{dados.composicaoBasica || linhas.map((l) => nomeMp(l.materiaPrimaId)).filter(Boolean).join(", ")}</div>
-            {dados.substitutivos && <><div className="mt-2 font-bold">EVENTUAIS SUBSTITUTIVOS</div><div>{dados.substitutivos}</div></>}
-            {dados.indicacaoUso && <><div className="mt-2 font-bold">INDICAÇÃO DE USO</div><div>{dados.indicacaoUso}</div></>}
-            {dados.modoUso && <><div className="mt-2 font-bold">MODO DE USO</div><div>{dados.modoUso}</div></>}
-            {dados.restricoes && <><div className="mt-2 font-bold">RESTRIÇÕES / CARÊNCIA</div><div>{dados.restricoes}</div></>}
-            <div className="mt-2">Peso líquido: {dados.pesoSacariaKg} kg · Lote e fabricação: ver embalagem</div>
+        <section className="cartao flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Rótulo e etiquetas</h2>
+            <p className="text-sm text-slate-600">Espelho do rótulo gerado da fórmula aprovada, conferência dos itens obrigatórios e arquivo ZPL para impressora Zebra.</p>
           </div>
+          <a href={`/produtos/${inicial.id}/rotulo`} className="btn-secundario">
+            Abrir rótulo
+          </a>
         </section>
       )}
     </div>
