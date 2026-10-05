@@ -35,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/produtos", rotulo: "Produtos e fórmulas", icone: "formula" },
     { secao: "Gestão" },
     ...(pode(ctx.perfil, "dossie:gerar") ? [{ href: "/dossie", rotulo: "Preparar Auditoria MAPA", icone: "pop" } as ItemMenu] : []),
+    ...(pode(ctx.perfil, "dossie:gerar") ? [{ href: "/manual-bpf", rotulo: "Manual de BPF (PDF)", icone: "livro" } as ItemMenu] : []),
     ...(pode(ctx.perfil, "auditoria:ver") ? [{ href: "/auditoria", rotulo: "Trilha de auditoria", icone: "auditoria" } as ItemMenu] : []),
     ...(pode(ctx.perfil, "usuarios:gerenciar") ? [{ href: "/usuarios", rotulo: "Usuários", icone: "usuarios" } as ItemMenu] : []),
     ...(pode(ctx.perfil, "empresa:configurar") ? [{ href: "/configuracoes", rotulo: "Configurações", icone: "config" } as ItemMenu] : []),

@@ -48,6 +48,25 @@ PDFKit (PDF dos RQs) · jose (sessão JWT em cookie httpOnly) · bcrypt · Vites
 | **Etiquetas ZPL** (Zebra, 203 ou 300 dpi, 100×150, 100×100 ou 100×200 mm) com código de barras Code 128 do lote e quantidade = sacas produzidas; fonte reduz sozinha para caber; impressão bloqueada sem aprovação do RT; impressão pelo navegador ajustada ao tamanho; emissão auditada | ✅ |
 | **Preparar Auditoria MAPA** (`/dossie`): resumo do período com cobertura da agenda por RQ e um ZIP com índice em PDF, um PDF por RQ organizado por POP, relatório de NCs com o ciclo completo, simulados de recall, planilhas de rastreabilidade e cadastros, trilha de auditoria e `MANIFESTO-SHA256.txt` | ✅ |
 
+## Manual de BPF em PDF por fábrica
+
+| Módulo | Situação |
+|---|---|
+| **Manual de BPF** (`/manual-bpf`): gera o PDF para impressão do MB01 + POP 01 a 09 com os registros de autocontrole, no layout do modelo da consultoria (`assets/manual-bpf/MBPF-modelo.odt`). Troca em cabeçalhos, rodapés, capas e texto: razão social, quadro do cabeçalho dos registros, CNPJ, IE, endereço, contato, atividade, RT e registro, Responsável Legal, Responsável pela Fábrica, Controle de Qualidade, data de emissão e revisão | ✅ |
+| **Emissão anual**: botão “Nova emissão anual” (data de hoje e revisão +1), aviso quando a emissão passa de 1 ano e histórico de edições com o PDF exatamente como foi emitido (tabela imutável, emissão auditada) | ✅ |
+
+Como funciona: o ODT do modelo é aberto com JSZip, os textos da Agro Leste são trocados no `content.xml` e no `styles.xml`
+(a busca acha o texto mesmo quando o Writer o partiu em vários `<text:span>`) e o LibreOffice converte em PDF
+(`soffice --headless`). **O servidor precisa do LibreOffice Writer** e das fontes métricas do Calibri:
+
+```bash
+sudo apt-get install -y --no-install-recommends libreoffice-writer-nogui fonts-crosextra-carlito fonts-crosextra-caladea
+```
+
+Use `SOFFICE_PATH` se o executável não estiver no `PATH`. Ajuste feito no modelo enviado: a página do Registro 01/POP 09
+(Ordem de Produção) era uma imagem inteira com o cabeçalho e o rodapé da Agro Leste dentro da figura; a imagem foi recortada
+para o corpo do formulário e a página ganhou cabeçalho e rodapé editáveis como os demais registros.
+
 ## Rodando localmente
 
 ```bash
@@ -69,7 +88,7 @@ Usuários de demonstração (senha `nutripec123`):
 | consultor@nutripec.demo | Consultor de BPF (acessa 2 fábricas) |
 | auditor@nutripec.demo | Auditor fiscal (somente leitura) |
 
-Testes: `npm test` (regras puras, agenda, rótulo/ZPL e integração contra o banco do `DATABASE_URL`; 61 testes).
+Testes: `npm test` (regras puras, agenda, rótulo/ZPL e integração contra o banco do `DATABASE_URL`; 70 testes; os de PDF do manual rodam quando o LibreOffice está instalado).
 
 ### Alertas (opcional)
 

@@ -44,6 +44,31 @@ async function main() {
     },
   });
 
+  // dados do Manual de BPF da fábrica de demonstração (o PDF é gerado em /manual-bpf)
+  await prisma.manualBpfConfig.create({
+    data: {
+      tenantId: fabrica.id,
+      inscricaoEstadual: "582.123.456.789",
+      logradouro: "Rodovia Anhanguera, km 312",
+      bairro: "Distrito Industrial",
+      cidade: "Ribeirão Preto",
+      uf: "SP",
+      cep: "14.000-000",
+      telefone: "(16)99999-0000",
+      email: "qualidade@nutripec.demo",
+      atividade: "Fabricação de Ração Balanceada, Concentrado e Suplemento Mineral Proteico.",
+      cabecalhoLinha1: "NUTRIPEC",
+      cabecalhoLinha2: "Rações",
+      rtNome: "Dra. Ana Ribeiro",
+      rtRegistro: "CRMV-SP 12345",
+      responsavelLegal: "Carlos Mendes",
+      responsavelFabrica: "Carlos Mendes",
+      controleQualidade: "Dra. Ana Ribeiro",
+      dataEmissao: new Date().toISOString().slice(0, 10),
+      revisao: "01",
+    },
+  });
+
   const usuarios: { nome: string; email: string; perfil: Perfil; reg?: string; cargo: string; tenants: string[]; alertas?: boolean }[] = [
     { nome: "Carlos Mendes", email: "ceo@nutripec.demo", perfil: "CEO", cargo: "Diretor", tenants: [fabrica.id] },
     { nome: "Dra. Ana Ribeiro", email: "rt@nutripec.demo", perfil: "RT", reg: "CRMV-SP 12345", cargo: "Médica Veterinária RT", tenants: [fabrica.id], alertas: true },

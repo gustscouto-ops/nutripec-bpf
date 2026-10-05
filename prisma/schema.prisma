@@ -55,6 +55,8 @@ model Tenant {
   instrucoes       InstrucaoTrabalho[]
   notificacoes     Notificacao[]
   recalls          RecallRegistro[]
+  manualBpf        ManualBpfConfig?
+  emissoesManual   ManualBpfEmissao[]
 
   @@map("tenants")
 }
@@ -625,4 +627,56 @@ model RecallRegistro {
 
   @@unique([tenantId, numero])
   @@map("recalls")
+}
+
+// Manual de BPF (MB01 + POP 01 a 09 + registros) gerado do modelo ODT da consultoria com os dados de cada fábrica
+model ManualBpfConfig {
+  id                 String   @id @default(cuid())
+  tenantId           String   @unique @map("tenant_id")
+  inscricaoEstadual  String   @default("") @map("inscricao_estadual")
+  logradouro         String   @default("")
+  bairro             String   @default("")
+  cidade             String   @default("")
+  uf                 String   @default("")
+  cep                String   @default("")
+  telefone           String   @default("")
+  email              String   @default("")
+  atividade          String   @default("")
+  cabecalhoLinha1    String   @default("") @map("cabecalho_linha1")
+  cabecalhoLinha2    String   @default("") @map("cabecalho_linha2")
+  rtNome             String   @default("") @map("rt_nome")
+  rtRegistro         String   @default("") @map("rt_registro")
+  responsavelLegal   String   @default("") @map("responsavel_legal")
+  responsavelFabrica String   @default("") @map("responsavel_fabrica")
+  controleQualidade  String   @default("") @map("controle_qualidade")
+  dataEmissao        String   @map("data_emissao") // AAAA-MM-DD
+  revisao            String   @default("02")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("manual_bpf_config")
+}
+
+// Cada edição impressa do manual (uma por combinação de dados): histórico das emissões anuais
+model ManualBpfEmissao {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  numero      Int
+  dataEmissao String   @map("data_emissao")
+  revisao     String
+  dados       Json
+  hashDados   String   @map("hash_dados")
+  hashPdf     String   @map("hash_pdf")
+  paginas     Int
+  arquivo     String // chave no armazenamento: o PDF exatamente como foi emitido
+  userId      String   @map("user_id")
+  userNome    String   @map("user_nome")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, numero])
+  @@unique([tenantId, hashDados])
+  @@map("manual_bpf_emissoes")
 }
