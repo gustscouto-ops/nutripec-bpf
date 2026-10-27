@@ -60,7 +60,7 @@ Como funciona: o ODT do modelo é aberto com JSZip, os textos da Agro Leste são
 (`soffice --headless`). **O servidor precisa do LibreOffice Writer** e das fontes métricas do Calibri:
 
 ```bash
-sudo apt-get install -y --no-install-recommends libreoffice-writer-nogui fonts-crosextra-carlito fonts-crosextra-caladea
+sudo apt-get install -y --no-install-recommends libreoffice-writer-nogui fonts-crosextra-carlito fonts-crosextra-caladea fonts-liberation fonts-liberation2
 ```
 
 Use `SOFFICE_PATH` se o executável não estiver no `PATH`. Ajuste feito no modelo enviado: a página do Registro 01/POP 09
@@ -111,6 +111,20 @@ Sem configuração, os envios ficam registrados como "simulados" em Configuraç�
 
 Agende uma chamada diária, por exemplo às 7h: `curl -H "Authorization: Bearer $CRON_SECRET" https://seu-dominio/api/cron/alertas`.
 O sistema envia no máximo um resumo por dia para cada destinatário.
+
+## Publicar na web
+
+O `Dockerfile` gera a imagem de produção (Ubuntu 24.04 + Node 22 + LibreOffice 24.2 com as fontes do modelo do Manual).
+Ao subir, o contêiner roda `scripts/iniciar.sh`: `prisma migrate deploy`, atualização dos POPs/RQs padrão
+(`prisma/producao.ts`, sem as fábricas de demonstração) e `next start` na porta `PORT`.
+
+- **Primeiro acesso**: defina `EMPRESA_CNPJ`, `EMPRESA_RAZAO_SOCIAL`, `ADMIN_NOME`, `ADMIN_EMAIL` e `ADMIN_SENHA`; o deploy cria a
+  empresa e o usuário (só o que ainda não existe). Outras fábricas: troque `EMPRESA_*` e faça novo deploy; o mesmo e-mail ganha acesso a elas.
+- **Arquivos** (fotos, logos, PDFs emitidos do manual) ficam em `STORAGE_DIR` (`/data/storage`): monte um volume persistente em `/data`.
+- **Obrigatórias**: `DATABASE_URL`, `AUTH_SECRET` (`openssl rand -hex 32`), `APP_URL`, `CRON_SECRET`.
+- **Railway** (recomendado): `railway.json` já aponta para o Dockerfile e usa `/login` como verificação de saúde.
+- **Servidor próprio**: `docker compose -f docker-compose.prod.yml up -d --build` (Postgres junto) atrás de um proxy HTTPS.
+- **Alertas diários**: `.github/workflows/alertas.yml` chama `/api/cron/alertas` às 7h com os segredos `APP_URL` e `CRON_SECRET` do GitHub.
 
 ## Decisões de arquitetura
 

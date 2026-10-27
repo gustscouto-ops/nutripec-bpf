@@ -1,0 +1,30 @@
+# Alternativa à hospedagem gerenciada: tudo num servidor próprio (VPS) com Docker.
+#   cp .env.example .env   # preencha AUTH_SECRET, CRON_SECRET, APP_URL, POSTGRES_PASSWORD e o primeiro acesso
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Coloque um proxy com HTTPS na frente (Caddy, Nginx + Certbot) apontando para a porta 3000.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nutripec
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/nutripec?schema=public
+      STORAGE_DIR: /data/storage
+    ports: ["3000:3000"]
+    volumes: [arquivos:/data]
+    depends_on:
+      db: { condition: service_healthy }
+volumes:
+  pgdata:
+  arquivos:

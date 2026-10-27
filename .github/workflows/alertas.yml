@@ -1,0 +1,18 @@
+# Dispara todo dia às 7h (Brasília) o resumo de pendências por e-mail/WhatsApp.
+# Configure em Settings → Secrets and variables → Actions: APP_URL (ex.: https://bpf.seudominio.com.br) e CRON_SECRET.
+name: Alertas diários
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+jobs:
+  alertas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar /api/cron/alertas
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then echo "APP_URL/CRON_SECRET não configurados; nada a fazer."; exit 0; fi
+          curl -fsS --max-time 120 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/alertas"
