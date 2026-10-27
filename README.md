@@ -112,6 +112,12 @@ Sem configuração, os envios ficam registrados como "simulados" em Configuraç�
 Agende uma chamada diária, por exemplo às 7h: `curl -H "Authorization: Bearer $CRON_SECRET" https://seu-dominio/api/cron/alertas`.
 O sistema envia no máximo um resumo por dia para cada destinatário.
 
+## Demonstração no seu computador
+
+Com o Docker instalado, na pasta do projeto: `docker compose -f docker-compose.demo.yml up --build` e abra http://localhost:3000
+(usuários de demonstração abaixo, senha `nutripec123`). No celular, na mesma rede Wi-Fi: `http://IP-DO-COMPUTADOR:3000`.
+`docker compose -f docker-compose.demo.yml down -v` apaga os dados de teste.
+
 ## Publicar na web
 
 O `Dockerfile` gera a imagem de produção (Ubuntu 24.04 + Node 22 + LibreOffice 24.2 com as fontes do modelo do Manual).

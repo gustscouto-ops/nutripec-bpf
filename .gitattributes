@@ -1,0 +1,2 @@
+# scripts do contêiner precisam de LF mesmo em checkout no Windows
+*.sh text eol=lf

@@ -1,0 +1,30 @@
+# Demonstração no seu computador, com as fábricas de exemplo (senha de todos: nutripec123).
+#   docker compose -f docker-compose.demo.yml up --build
+# Abra http://localhost:3000. Para parar: Ctrl+C. Para apagar os dados de teste: docker compose -f docker-compose.demo.yml down -v
+# NÃO use em produção: os segredos abaixo são públicos.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: nutripec
+      POSTGRES_PASSWORD: demo
+    volumes: [demo-pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 20
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://postgres:demo@db:5432/nutripec?schema=public
+      AUTH_SECRET: demonstracao-local-nao-usar-em-producao-0123456789
+      CRON_SECRET: demo
+      APP_URL: http://localhost:3000
+      SEED_DEMO: "1"
+    ports: ["3000:3000"]
+    volumes: [demo-arquivos:/data]
+    depends_on:
+      db: { condition: service_healthy }
+volumes:
+  demo-pgdata:
+  demo-arquivos:

@@ -9,5 +9,9 @@ if [ "$(id -u)" = "0" ]; then
 fi
 mkdir -p "$DIR"
 npx prisma migrate deploy
-npx tsx prisma/producao.ts
+if [ "$SEED_DEMO" = "1" ]; then
+  npx tsx prisma/seed.ts   # demonstração: POPs + fábricas de exemplo (só se o banco estiver vazio)
+else
+  npx tsx prisma/producao.ts
+fi
 exec npx next start -H 0.0.0.0 -p "${PORT:-3000}"

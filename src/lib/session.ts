@@ -40,7 +40,8 @@ export async function lerSessao(token: string | undefined): Promise<DadosSessao 
 export const OPCOES_COOKIE = {
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
+  // cookie só por HTTPS em produção; a demonstração local (APP_URL http://) também precisa abrir pelo IP da rede no celular
+  secure: process.env.NODE_ENV === "production" && !process.env.APP_URL?.startsWith("http://"),
   path: "/",
   maxAge: DURACAO_SEGUNDOS,
 };
