@@ -45,12 +45,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="border-t border-white/10 p-4 text-sm">
       <div className="font-semibold text-white">{ctx.nome}</div>
       <div className="text-marca-100">{ROTULO_PERFIL[ctx.perfil]}</div>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         {multiEmpresa && (
           <Link href="/selecionar-empresa" className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20">
             Trocar fábrica
           </Link>
         )}
+        <Link href="/minha-senha" className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20">
+          Minha senha
+        </Link>
         <form action={sair}>
           <button className="rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20">Sair</button>
         </form>
