@@ -193,6 +193,7 @@ async function main() {
   const conforme = (umidade: number) => ({
     veiculo_limpo: { valor: "C" }, lona_integra: { valor: "C" }, sem_pragas: { valor: "C" }, sem_mofo: { valor: "C" },
     embalagem_integra: { valor: "NA" }, rotulagem: { valor: "C" }, carga_exclusiva: { valor: "C" }, laudo: { valor: "C" },
+    ingrediente_registrado: { valor: "C" }, validade: { valor: "C" }, descarga_coberta: { valor: "C" },
     nf_confere: { valor: "C" }, umidade: { valor: umidade }, temperatura: { valor: 28 },
   });
   const cargas: [string, string, number, string][] = [
@@ -263,6 +264,9 @@ async function main() {
       respostas: {
         iscas_integras: { valor: "NC", descricaoNc: "Porta-isca nº 14 (doca) quebrado e sem tampa.", acaoCorretiva: "Porta-isca substituído e empresa controladora acionada." },
         capturas: { valor: 0 },
+        portas_telas: { valor: "C" },
+        sem_animais: { valor: "C" },
+        area_externa: { valor: "C" },
       },
       fotos: [],
     },

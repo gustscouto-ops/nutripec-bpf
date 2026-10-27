@@ -7,11 +7,13 @@ import type { CampoRq } from "@/lib/rq/campos";
 import { CODIGO_RQ_RECEBIMENTO, modelosEfetivos } from "@/lib/servicos/rq";
 import { itsEfetivas } from "@/lib/servicos/modelos";
 import { Cabecalho, Selo } from "@/components/ui";
+import { data } from "@/lib/formato";
 import { NovoItem } from "./novo-item";
 
 export const metadata = { title: "POPs, RQs e ITs" };
 
 const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+const UM_ANO = 365 * 24 * 3600_000;
 
 export default async function Pops() {
   const ctx = await exigirCtx();
@@ -24,11 +26,17 @@ export default async function Pops() {
     prisma.rqExecucao.groupBy({ by: ["codigoRq"], where: { tenantId: ctx.tenantId }, _count: true, _max: { dataHoraExecucao: true } }),
   ]);
   const porCodigo = new Map(execucoes.map((e) => [e.codigoRq, e]));
+  const agora = Date.now();
   return (
     <div className="mx-auto max-w-6xl">
       <Cabecalho
         titulo="POPs, Registros e Instruções"
         subtitulo="Os 9 POPs obrigatórios da IN MAPA 04/2007 já vêm estruturados. O RT pode adaptar os formulários (RQs) e as instruções de trabalho (ITs) à realidade da fábrica; registros já assinados não mudam."
+        acoes={
+          <a href="/api/rq/formularios" target="_blank" className="btn-secundario">
+            Todos os RQs em branco (PDF)
+          </a>
+        }
       />
       <div className="space-y-3">
         {pops.map((p) => {
@@ -47,7 +55,14 @@ export default async function Pops() {
                 <span className="text-slate-400 transition group-open:rotate-90">›</span>
               </summary>
 
-              <h3 className="mt-4 mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">Registros da qualidade</h3>
+              <div className="mt-4 mb-2 flex items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Registros da qualidade</h3>
+                {rqs.some((m) => m.ativo) && (
+                  <a href={`/api/rq/formularios?pop=${p.numeroPop}`} target="_blank" className="link text-sm">
+                    RQs do POP {String(p.numeroPop).padStart(2, "0")} em branco (PDF)
+                  </a>
+                )}
+              </div>
               <ul className="space-y-2">
                 {rqs.map((m) => {
                   const ex = porCodigo.get(m.codigoRq);
@@ -64,7 +79,7 @@ export default async function Pops() {
                         <div>
                           <span className="font-mono text-sm font-semibold">{m.codigoRq}</span> · {m.titulo}
                           <div className="text-xs text-slate-500">
-                            {(m.campos as unknown as CampoRq[]).length} itens · v{m.versao}
+                            {(m.campos as unknown as CampoRq[]).length} itens · rev. {String(m.versao).padStart(2, "0")} de {data(m.dataRevisao)}
                             {m.tenantId ? " · versão da empresa" : " · padrão"} · {ex ? `${ex._count} registro(s)` : "sem registros"}
                           </div>
                         </div>
@@ -74,6 +89,10 @@ export default async function Pops() {
                             {quando}
                           </Selo>
                           {!m.ativo && <Selo>Desativado</Selo>}
+                          {m.ativo && agora - m.dataRevisao.getTime() > UM_ANO && <Selo cor="amarelo">Revisar (mais de 1 ano)</Selo>}
+                          <a href={`/api/rq/modelo/${m.id}/pdf`} target="_blank" className="btn-secundario min-h-9 py-1">
+                            Em branco
+                          </a>
                           {customiza && (
                             <Link href={`/pops/modelos/${m.id}`} className="btn-secundario min-h-9 py-1">
                               Personalizar

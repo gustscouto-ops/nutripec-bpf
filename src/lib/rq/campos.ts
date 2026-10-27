@@ -12,6 +12,8 @@ export type CampoRq = {
   tipo: TipoCampo;
   obrigatorio?: boolean;
   ajuda?: string;
+  /** Critério de conformidade impresso no formulário (ex.: "Ausência"). Numéricos sem padrão mostram a faixa min–max. */
+  padrao?: string;
   unidade?: string;
   min?: number;
   max?: number;
@@ -43,6 +45,19 @@ export function faixaDoCampo(campo: CampoRq, limites: Limites = {}) {
     min: campo.min,
     max: maxDinamico ?? campo.max,
   };
+}
+
+/** Texto do padrão/limite de um item, para o formulário impresso e o PDF do registro. */
+export function padraoDoCampo(campo: CampoRq): string {
+  if (campo.padrao) return campo.padrao;
+  if (campo.tipo !== "numerico") return campo.tipo === "conformidade" ? "Conforme" : "";
+  const u = campo.unidade ? ` ${campo.unidade}` : "";
+  const n = (v: number) => v.toLocaleString("pt-BR");
+  if (campo.limiteDinamico) return `Limite do cadastro da MP${campo.max !== undefined ? ` (padrão máx. ${n(campo.max)}${u})` : ""}`;
+  if (campo.min !== undefined && campo.max !== undefined) return campo.min === campo.max ? `${n(campo.min)}${u}` : `${n(campo.min)} a ${n(campo.max)}${u}`;
+  if (campo.min !== undefined) return `Mín. ${n(campo.min)}${u}`;
+  if (campo.max !== undefined) return `Máx. ${n(campo.max)}${u}`;
+  return campo.unidade ? `Anotar (${campo.unidade})` : "Anotar";
 }
 
 /** Indica se a resposta de um campo é não conforme (sem considerar descrição). */

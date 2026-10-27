@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { exigirCtx, validarAssinatura } from "@/lib/auth";
 import { ErroNegocio, executar } from "@/lib/erros";
 import { registrarExecucaoRq } from "@/lib/servicos/rq";
+import { verificarRq } from "@/lib/servicos/verificacao";
 import type { Respostas } from "@/lib/rq/campos";
 
 export async function acaoRegistrarRq(form: FormData) {
@@ -31,6 +32,21 @@ export async function acaoRegistrarRq(form: FormData) {
   if (r.ok) {
     revalidatePath("/tarefas");
     revalidatePath("/rqs");
+  }
+  return r;
+}
+
+export async function acaoVerificarRq(rqId: string, senha: string, parecer: string) {
+  const r = await executar(async () => {
+    const ctx = await exigirCtx("rq:verificar");
+    await validarAssinatura(ctx, senha);
+    const v = await verificarRq(ctx, rqId, parecer);
+    return { id: v.id };
+  }, "Verificação assinada.");
+  if (r.ok) {
+    revalidatePath("/rqs");
+    revalidatePath(`/rqs/${rqId}`);
+    revalidatePath(`/recebimento/${rqId}`);
   }
   return r;
 }

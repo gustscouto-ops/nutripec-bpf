@@ -17,11 +17,16 @@ export default async function Rqs({ searchParams }: { searchParams: Promise<{ po
     ...(pop ? { modelo: { pop: { numeroPop: Number(pop) } } } : {}),
     ...(status === "NAO_CONFORME" || status === "CONFORME" ? { status } : {}),
     ...(status === "ATRASADO" ? { atrasado: true } : {}),
+    ...(status === "SEM_VERIFICACAO" ? { verificacao: { is: null } } : {}),
   };
   const [rqs, total, pops] = await Promise.all([
     prisma.rqExecucao.findMany({
       where,
-      include: { modelo: { select: { titulo: true, pop: { select: { numeroPop: true } } } }, _count: { select: { naoConformidades: true, fotos: true } } },
+      include: {
+        modelo: { select: { titulo: true, pop: { select: { numeroPop: true } } } },
+        verificacao: { select: { nome: true } },
+        _count: { select: { naoConformidades: true, fotos: true } },
+      },
       orderBy: { dataHoraExecucao: "desc" },
       skip: (pagina - 1) * 50,
       take: 50,
@@ -44,14 +49,14 @@ export default async function Rqs({ searchParams }: { searchParams: Promise<{ po
           </Link>
         ))}
         <span className="mx-1 hidden w-px bg-slate-300 sm:block" />
-        {[["", "Qualquer resultado"], ["NAO_CONFORME", "Não conformes"], ["ATRASADO", "Fora do prazo"]].map(([v, r]) => (
+        {[["", "Qualquer resultado"], ["NAO_CONFORME", "Não conformes"], ["ATRASADO", "Fora do prazo"], ["SEM_VERIFICACAO", "Aguardando verificação"]].map(([v, r]) => (
           <Link key={v} href={q({ status: v || undefined, p: undefined })} className={`rounded-full px-3 py-1.5 text-sm ${(status ?? "") === v ? "bg-slate-800 text-white" : "bg-white ring-1 ring-slate-200"}`}>{r}</Link>
         ))}
       </div>
       <div className="cartao overflow-x-auto p-0 sm:p-0">
         {rqs.length ? (
           <table className="tabela">
-            <thead><tr><th>Registro</th><th>Referência</th><th>Assinado</th><th>Resultado</th><th /></tr></thead>
+            <thead><tr><th>Registro</th><th>Referência</th><th>Monitorado</th><th>Verificado</th><th>Resultado</th><th /></tr></thead>
             <tbody>
               {rqs.map((r) => (
                 <tr key={r.id}>
@@ -66,6 +71,7 @@ export default async function Rqs({ searchParams }: { searchParams: Promise<{ po
                     {r.atrasado && <div><Selo cor="amarelo">fora do prazo</Selo></div>}
                   </td>
                   <td className="whitespace-nowrap">{dataHora(r.dataHoraExecucao)}<div className="text-xs text-slate-500">{r.nomeAssinatura}</div></td>
+                  <td className="whitespace-nowrap">{r.verificacao ? <span className="text-sm">{r.verificacao.nome}</span> : <Selo cor="amarelo">pendente</Selo>}</td>
                   <td>
                     <Selo cor={r.status === "CONFORME" ? "verde" : "vermelho"}>{r.status === "CONFORME" ? "Conforme" : "Não conforme"}</Selo>
                     {r._count.naoConformidades > 0 && <div className="mt-1 text-xs text-slate-500">{r._count.naoConformidades} NC(s)</div>}

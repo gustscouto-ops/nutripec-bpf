@@ -7,6 +7,7 @@ import { exigirCtx } from "@/lib/auth";
 import { atualizarAuditado } from "@/lib/audit";
 import { ErroNegocio, executar } from "@/lib/erros";
 import { enviarAlertas } from "@/lib/servicos/alertas";
+import { salvarIdentidade } from "@/lib/servicos/identidade";
 
 export async function salvarEmpresa(_: unknown, form: FormData) {
   const r = await executar(async () => {
@@ -40,4 +41,22 @@ export async function acaoTestarAlertas() {
     revalidatePath("/configuracoes");
     return relatorio.length;
   });
+}
+
+/** Cabeçalho e rodapé dos RQs: nome, logo e responsáveis (RT, controle de qualidade, proprietário). */
+export async function acaoSalvarIdentidade(_: unknown, form: FormData) {
+  const r = await executar(async () => {
+    const ctx = await exigirCtx("empresa:configurar");
+    const v = (k: string) => String(form.get(k) ?? "");
+    const arquivo = form.get("logo");
+    const logo = arquivo instanceof File && arquivo.size > 0 ? { conteudo: Buffer.from(await arquivo.arrayBuffer()), mime: arquivo.type } : null;
+    await salvarIdentidade(
+      ctx,
+      { nomeCabecalho: v("nomeCabecalho"), rtNome: v("rtNome"), rtRegistro: v("rtRegistro"), controleQualidade: v("controleQualidade"), proprietario: v("proprietario") },
+      logo,
+      form.get("removerLogo") === "1",
+    );
+  }, "Cabeçalho e rodapé dos RQs salvos. Os próximos PDFs já saem com estes dados.");
+  if (r.ok) revalidatePath("/configuracoes");
+  return r;
 }

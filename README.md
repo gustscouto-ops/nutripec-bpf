@@ -67,6 +67,14 @@ Use `SOFFICE_PATH` se o executável não estiver no `PATH`. Ajuste feito no mode
 (Ordem de Produção) era uma imagem inteira com o cabeçalho e o rodapé da Agro Leste dentro da figura; a imagem foi recortada
 para o corpo do formulário e a página ganhou cabeçalho e rodapé editáveis como os demais registros.
 
+## RQs da fábrica: revisão, impressão e verificação
+
+- **Controle de revisão** (`/pops/modelos/[id]`): cada alteração de conteúdo de um RQ gera revisão com número (pode continuar a numeração do papel, ex.: 07), data, motivo e resumo automático do que mudou. Histórico imutável em `rq_modelo_revisoes`. Registros assinados guardam a revisão em que foram feitos.
+- **Cabeçalho e rodapé** (`/configuracoes`): logo (PNG/JPG), nome da empresa, RT (elabora e verifica), controle de qualidade (monitora) e proprietário (aprova). Tabela `identidade_registros`.
+- **PDF** (`src/lib/pdf/formulario.ts`): cabeçalho com logo, código "RQ x.y / POP 0x", revisão, data da revisão e título; rodapé com os três responsáveis. Registro preenchido em `/api/rq/[id]/pdf`; formulário em branco em `/api/rq/modelo/[id]/pdf` e todos os RQs de um POP em `/api/rq/formularios?pop=N` (também vai no dossiê MAPA). Diária sai como grade do mês; demais frequências em blocos por folha (configurável). Em branco inclui monitor/verificador e relatório de NC (produto, condições sanitárias, medida preventiva — IN 04/2007, 7.2).
+- **Verificação** (IN 04/2007, 7.15): segunda assinatura eletrônica do RT/consultor, de pessoa diferente do monitor, com parecer obrigatório quando há NC. Tabela imutável `rq_verificacoes`; filtro "Aguardando verificação" em `/rqs`.
+- **Catálogo revisto pela IN 04/2007**: 23 RQs padrão (eram 16), cada item cita o requisito do Anexo I e cada RQ traz orientações impressas. Empresas que já personalizaram um RQ mantêm a sua versão.
+
 ## Rodando localmente
 
 ```bash

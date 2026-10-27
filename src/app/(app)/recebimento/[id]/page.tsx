@@ -9,6 +9,7 @@ import { Alerta, Cabecalho, Dl, Selo } from "@/components/ui";
 import { COR_STATUS_LOTE, ROTULO_STATUS_LOTE, data, dataHora, kg } from "@/lib/formato";
 import { COR_STATUS_NC, ROTULO_STATUS_NC } from "@/lib/servicos/nc";
 import { DecisaoRt } from "./decisao";
+import { BlocoVerificacao } from "@/components/bloco-verificacao";
 
 export const metadata = { title: "Recebimento" };
 
@@ -20,12 +21,12 @@ export default async function RecebimentoDetalhe({ params, searchParams }: { par
   const ctx = await exigirCtx();
   const rq = await prisma.rqExecucao.findFirst({
     where: { id, tenantId: ctx.tenantId },
-    include: { modelo: { include: { pop: true } }, fotos: true, loteMp: true, naoConformidades: { orderBy: { numero: "asc" } } },
+    include: { modelo: { include: { pop: true } }, fotos: true, loteMp: true, naoConformidades: { orderBy: { numero: "asc" } }, verificacao: true },
   });
   if (!rq) notFound();
   const c = rq.cabecalho as unknown as CabecalhoRecebimento;
   const respostas = rq.respostas as unknown as Respostas;
-  const campos = rq.modelo.campos as unknown as CampoRq[];
+  const campos = ((rq.campos as unknown as CampoRq[]).length ? rq.campos : rq.modelo.campos) as unknown as CampoRq[]; // campos da revisão em que foi assinado
   const lote = rq.loteMp;
 
   return (
@@ -127,7 +128,7 @@ export default async function RecebimentoDetalhe({ params, searchParams }: { par
       )}
 
       <section className="cartao">
-        <h2 className="mb-3 font-semibold">Assinatura eletrônica</h2>
+        <h2 className="mb-3 font-semibold">Monitorado por (assinatura eletrônica)</h2>
         <Dl
           itens={[
             ["Assinado por", rq.nomeAssinatura],
@@ -137,6 +138,8 @@ export default async function RecebimentoDetalhe({ params, searchParams }: { par
           ]}
         />
       </section>
+
+      <BlocoVerificacao ctx={ctx} rq={rq} />
 
       {lote && lote.status !== "QUARENTENA" && lote.decisaoRtEm && (
         <section className="cartao">

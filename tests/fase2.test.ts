@@ -17,7 +17,10 @@ const AGORA = new Date("2026-10-07T13:00:00Z"); // quarta, 10:00 BRT
 let ctx: Ctx;
 let outro: Ctx;
 const id = async (codigo: string, c = ctx) => (await modeloEfetivo(c.tenantId, codigo))!.id;
-const limpeza = { piso: { valor: "C" }, moega: { valor: "C" }, misturador: { valor: "C" }, ensaque: { valor: "C" } };
+const limpeza = {
+  piso: { valor: "C" }, moega: { valor: "C" }, misturador: { valor: "C" }, ensaque: { valor: "C" },
+  residuos_limpeza: { valor: "C" }, produtos_limpeza: { valor: "C" }, equip_manutencao: { valor: "NA" },
+};
 
 async function fabrica(nome: string): Promise<Ctx> {
   const tenant = await prisma.tenant.create({ data: { razaoSocial: `${nome} ${uid}`, cnpj: `${nome}-${uid}`, createdAt: new Date("2026-09-01T12:00:00Z") } });
@@ -86,7 +89,11 @@ describe("não conformidades", () => {
       ctx,
       {
         modeloId: await id("RQ 7.1"),
-        respostas: { iscas_integras: { valor: "C" }, capturas: { valor: 2, descricaoNc: "Dois roedores no PI-04", acaoCorretiva: "Isca reposta e área isolada" } },
+        respostas: {
+          iscas_integras: { valor: "C" },
+          capturas: { valor: 2, descricaoNc: "Dois roedores no PI-04", acaoCorretiva: "Isca reposta e área isolada" },
+          portas_telas: { valor: "C" }, sem_animais: { valor: "C" }, area_externa: { valor: "C" },
+        },
         fotos: [],
       },
       { agora: AGORA },
@@ -143,7 +150,7 @@ describe("customização de formulários e ITs", () => {
     expect((await modeloEfetivo(outro.tenantId, "RQ 2.1"))!.id).toBe(padrao!.id); // outra fábrica continua no padrão
     // registros antigos guardam os campos da época
     const antigo = await prisma.rqExecucao.findFirstOrThrow({ where: { tenantId: ctx.tenantId, codigoRq: "RQ 2.1" } });
-    expect((antigo.campos as unknown[]).length).toBe(4);
+    expect((antigo.campos as unknown[]).length).toBe((padrao!.campos as unknown[]).length);
   });
 
   it("formulário desatualizado na tela é recusado", async () => {

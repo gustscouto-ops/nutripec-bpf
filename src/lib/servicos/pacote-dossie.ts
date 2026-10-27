@@ -3,12 +3,13 @@ import { prisma, num } from "../db";
 import { registrarAuditoria } from "../audit";
 import { csv } from "../csv";
 import { sha256 } from "../hash";
-import { pdfRq } from "../pdf/rq";
+import { pdfFormulariosEmBranco, pdfRq } from "../pdf/rq";
 import { pdfRecall } from "../pdf/recall";
 import { pdfIndiceDossie, pdfNcsPeriodo } from "../pdf/dossie";
 import { chaveDia } from "../agenda";
 import type { Ctx } from "../auth";
 import { intervalo, resumoDossie } from "./dossie";
+import { modelosEfetivos } from "./rq";
 
 const semAcento = (t: string) =>
   t
@@ -52,6 +53,10 @@ export async function gerarPacoteDossie(ctx: Ctx, inicio: string, fim: string) {
 
   // 2. Não conformidades
   add("Nao-conformidades.pdf", await pdfNcsPeriodo(tenant, de, ate));
+
+  // 2b. Formulários vigentes em branco: o modelo aprovado de cada RQ, como anexado aos POPs
+  const vigentes = await modelosEfetivos(ctx.tenantId);
+  if (vigentes.length) add("RQs-vigentes-em-branco.pdf", await pdfFormulariosEmBranco(ctx.tenantId, vigentes, "RQs vigentes em branco"));
 
   // 3. Simulados e recolhimentos
   const recalls = await prisma.recallRegistro.findMany({ where: { tenantId: ctx.tenantId, concluidoEm: { gte: de, lt: ate } }, orderBy: { numero: "asc" } });

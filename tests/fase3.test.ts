@@ -22,6 +22,7 @@ const ids: Record<string, string> = {};
 const checklistOk = {
   veiculo_limpo: { valor: "C" }, lona_integra: { valor: "C" }, sem_pragas: { valor: "C" }, sem_mofo: { valor: "C" },
   embalagem_integra: { valor: "NA" }, rotulagem: { valor: "C" }, carga_exclusiva: { valor: "C" }, laudo: { valor: "C" },
+  ingrediente_registrado: { valor: "C" }, validade: { valor: "C" }, descarga_coberta: { valor: "C" },
   nf_confere: { valor: "C" }, umidade: { valor: 12 }, temperatura: { valor: 25 },
 };
 
@@ -191,6 +192,7 @@ describe("dossiê de fiscalização", () => {
     const rel = nomes.map((n) => n.slice(raiz.length + 1));
     expect(rel).toContain("00-Indice-e-resumo.pdf");
     expect(rel).toContain("Nao-conformidades.pdf");
+    expect(rel).toContain("RQs-vigentes-em-branco.pdf");
     expect(rel).toContain("Trilha-de-auditoria.csv");
     expect(rel.some((n) => n.startsWith("POP-01 ") && n.includes("RQ-1.2 n0001"))).toBe(true);
     expect(rel.some((n) => n.startsWith("POP-09 ") && n.includes("RQ-9.1"))).toBe(true);

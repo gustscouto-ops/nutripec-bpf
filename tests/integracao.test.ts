@@ -21,6 +21,7 @@ const mp: Record<string, string> = {};
 const checklistOk = (umidade = 12) => ({
   veiculo_limpo: { valor: "C" }, lona_integra: { valor: "C" }, sem_pragas: { valor: "C" }, sem_mofo: { valor: "C" },
   embalagem_integra: { valor: "NA" }, rotulagem: { valor: "C" }, carga_exclusiva: { valor: "C" }, laudo: { valor: "C" },
+  ingrediente_registrado: { valor: "C" }, validade: { valor: "C" }, descarga_coberta: { valor: "C" },
   nf_confere: { valor: "C" }, umidade: { valor: umidade }, temperatura: { valor: 25 },
 });
 

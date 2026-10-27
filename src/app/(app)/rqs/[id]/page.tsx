@@ -8,6 +8,7 @@ import { COR_STATUS_NC, ROTULO_STATUS_NC } from "@/lib/servicos/nc";
 import type { CampoRq, Respostas } from "@/lib/rq/campos";
 import { Alerta, Cabecalho, Dl, Selo } from "@/components/ui";
 import { dataHora } from "@/lib/formato";
+import { BlocoVerificacao } from "@/components/bloco-verificacao";
 
 export const metadata = { title: "Registro da qualidade" };
 const ROT: Record<string, string> = { C: "Conforme", NC: "Não conforme", NA: "N/A" };
@@ -18,7 +19,7 @@ export default async function RqDetalhe({ params, searchParams }: { params: Prom
   const ctx = await exigirCtx();
   const rq = await prisma.rqExecucao.findFirst({
     where: { id, tenantId: ctx.tenantId },
-    include: { modelo: { include: { pop: true } }, fotos: true, naoConformidades: { orderBy: { numero: "asc" } } },
+    include: { modelo: { include: { pop: true } }, fotos: true, naoConformidades: { orderBy: { numero: "asc" } }, verificacao: true },
   });
   if (!rq) notFound();
   if (rq.codigoRq === CODIGO_RQ_RECEBIMENTO) redirect(`/recebimento/${rq.id}${novo ? "?novo=1" : ""}`);
@@ -42,9 +43,9 @@ export default async function RqDetalhe({ params, searchParams }: { params: Prom
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Selo cor={rq.status === "CONFORME" ? "verde" : "vermelho"}>{rq.status === "CONFORME" ? "Conforme" : "Não conforme"}</Selo>
           {rq.atrasado && <Selo cor="amarelo">Preenchido fora do prazo</Selo>}
-          <Selo>formulário v{rq.versaoModelo}</Selo>
+          <Selo>formulário rev. {String(rq.versaoModelo).padStart(2, "0")}</Selo>
         </div>
-        <Dl itens={[["Referência", periodo ?? "—"], ["Assinado por", `${rq.nomeAssinatura} (${ROTULO_PERFIL[rq.perfilAssinatura]})`], ["Data/hora", dataHora(rq.dataHoraExecucao)]]} />
+        <Dl itens={[["Referência", periodo ?? "—"], ["Monitorado por", `${rq.nomeAssinatura} (${ROTULO_PERFIL[rq.perfilAssinatura]})`], ["Data/hora", dataHora(rq.dataHoraExecucao)]]} />
       </section>
 
       <section className="cartao">
@@ -103,9 +104,11 @@ export default async function RqDetalhe({ params, searchParams }: { params: Prom
       )}
 
       <section className="cartao">
-        <h2 className="mb-2 font-semibold">Assinatura eletrônica</h2>
+        <h2 className="mb-2 font-semibold">Assinatura eletrônica do monitor</h2>
         <p className="font-mono text-xs break-all text-slate-600">SHA-256: {rq.hashAssinatura}</p>
       </section>
+
+      <BlocoVerificacao ctx={ctx} rq={rq} />
     </div>
   );
 }

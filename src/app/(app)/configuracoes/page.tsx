@@ -5,15 +5,18 @@ import { Cabecalho, Selo } from "@/components/ui";
 import { dataHora } from "@/lib/formato";
 import { BotaoTestarAlertas } from "./alertas";
 import { FormEmpresa } from "./form";
+import { FormIdentidade } from "./identidade";
+import { dadosIdentidade } from "@/lib/servicos/identidade";
 
 export const metadata = { title: "Configurações" };
 
 export default async function Configuracoes() {
   const ctx = await exigirCtx("empresa:configurar");
-  const [t, destinatarios, envios] = await Promise.all([
+  const [t, destinatarios, envios, ident] = await Promise.all([
     prisma.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
     prisma.membership.findMany({ where: { tenantId: ctx.tenantId, ativo: true, receberAlertas: true }, include: { user: { select: { nome: true, email: true, telefone: true } } } }),
     prisma.notificacao.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "desc" }, take: 8 }),
+    dadosIdentidade(ctx.tenantId),
   ]);
   const emailReal = !!process.env.SMTP_HOST;
   const whatsReal = !!process.env.WHATSAPP_API_URL;
@@ -31,6 +34,12 @@ export default async function Configuracoes() {
           regraLoteMp: t.regraLoteMp,
           regraLoteProd: t.regraLoteProd,
         }}
+      />
+
+      <FormIdentidade
+        inicial={{ nomeCabecalho: ident.nomeCabecalho, rtNome: ident.rtNome, rtRegistro: ident.rtRegistro, controleQualidade: ident.controleQualidade, proprietario: ident.proprietario }}
+        temLogo={!!ident.logoArquivo}
+        salvo={ident.salvo}
       />
 
       <section className="cartao mt-6 space-y-4">

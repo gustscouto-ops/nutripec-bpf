@@ -12,7 +12,8 @@ export type Permissao =
   | "nc:encerrar"
   | "formulario:customizar"
   | "recall:registrar"
-  | "dossie:gerar";
+  | "dossie:gerar"
+  | "rq:verificar";
 
 const MATRIZ: Record<Perfil, Permissao[]> = {
   CEO: ["cadastros:editar", "operacao:registrar", "usuarios:gerenciar", "empresa:configurar", "auditoria:ver", "nc:tratar", "dossie:gerar"],
@@ -28,6 +29,7 @@ const MATRIZ: Record<Perfil, Permissao[]> = {
     "formulario:customizar",
     "recall:registrar",
     "dossie:gerar",
+    "rq:verificar",
   ],
   CONSULTOR: [
     "cadastros:editar",
@@ -42,6 +44,7 @@ const MATRIZ: Record<Perfil, Permissao[]> = {
     "formulario:customizar",
     "recall:registrar",
     "dossie:gerar",
+    "rq:verificar",
   ],
   OPERADOR: ["operacao:registrar"],
   AUDITOR: ["auditoria:ver", "dossie:gerar"],

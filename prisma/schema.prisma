@@ -57,6 +57,9 @@ model Tenant {
   recalls          RecallRegistro[]
   manualBpf        ManualBpfConfig?
   emissoesManual   ManualBpfEmissao[]
+  identidade       IdentidadeRegistros?
+  rqRevisoes       RqModeloRevisao[]
+  rqVerificacoes   RqVerificacao[]
 
   @@map("tenants")
 }
@@ -286,6 +289,12 @@ model RqModelo {
   diaSemana         Int?       @map("dia_semana") // SEMANAL/QUINZENAL: dia de vencimento (1=seg … 7=dom)
   diaMes            Int?       @map("dia_mes") // MENSAL/SEMESTRAL/ANUAL: dia de vencimento no mês
   perfilResponsavel Perfil?    @map("perfil_responsavel")
+  // Texto impresso no formulário (OBS: instruções, padrão, IT a observar)
+  orientacoes       String?
+  // Modelo em branco: quantos registros cabem por folha (nulo = padrão da frequência; diária usa a grade do mês)
+  registrosPorFolha Int?       @map("registros_por_folha")
+  // Controle de revisão: versao é o número da revisão impresso no cabeçalho
+  dataRevisao       DateTime   @default(now()) @map("data_revisao")
   atualizadoPor     String?    @map("atualizado_por")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @default(now()) @updatedAt @map("updated_at")
@@ -333,6 +342,7 @@ model RqExecucao {
 
   naoConformidades NaoConformidade[]
   recall           RecallRegistro?
+  verificacao      RqVerificacao?
 
   @@unique([tenantId, codigoRq, numero])
   @@index([tenantId, codigoRq, referenciaInicio])
@@ -351,6 +361,70 @@ model RqExecucaoFoto {
   execucao RqExecucao @relation(fields: [rqExecucaoId], references: [id])
 
   @@map("rq_execucoes_fotos")
+}
+
+/// Histórico de revisões de cada RQ (imutável): o que mudou, por quê, quem aprovou e o conteúdo da revisão.
+model RqModeloRevisao {
+  id          String     @id @default(cuid())
+  tenantId    String?    @map("tenant_id") // null = revisão do modelo padrão do sistema
+  rqModeloId  String     @map("rq_modelo_id")
+  codigoRq    String     @map("codigo_rq")
+  revisao     Int
+  dataRevisao DateTime   @map("data_revisao")
+  motivo      String
+  alteracoes  String // resumo automático do que mudou em relação à revisão anterior
+  titulo      String
+  frequencia  Frequencia
+  campos      Json
+  orientacoes String?
+  userId      String?    @map("user_id")
+  userNome    String     @map("user_nome")
+  hash        String
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, codigoRq])
+  @@map("rq_modelo_revisoes")
+}
+
+/// Verificação do registro (IN 04/2007, 7.15): segunda assinatura, de pessoa diferente do monitor. Imutável.
+model RqVerificacao {
+  id                   String   @id @default(cuid())
+  tenantId             String   @map("tenant_id")
+  rqExecucaoId         String   @unique @map("rq_execucao_id")
+  userId               String   @map("user_id")
+  nome                 String
+  perfil               Perfil
+  registroProfissional String?  @map("registro_profissional")
+  dataHora             DateTime @default(now()) @map("data_hora")
+  parecer              String?
+  hash                 String
+  ip                   String?
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  rqExecucao RqExecucao @relation(fields: [rqExecucaoId], references: [id])
+
+  @@index([tenantId])
+  @@map("rq_verificacoes")
+}
+
+/// Cabeçalho e rodapé impressos nos RQs: logo, nome da empresa e responsáveis que elaboram, monitoram e aprovam.
+model IdentidadeRegistros {
+  id                String   @id @default(cuid())
+  tenantId          String   @unique @map("tenant_id")
+  nomeCabecalho     String   @map("nome_cabecalho")
+  logoArquivo       String?  @map("logo_arquivo")
+  logoMime          String?  @map("logo_mime")
+  rtNome            String   @default("") @map("rt_nome")
+  rtRegistro        String   @default("") @map("rt_registro")
+  controleQualidade String   @default("") @map("controle_qualidade")
+  proprietario      String   @default("")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("identidade_registros")
 }
 
 // ───────────────────────── Não conformidades (ação imediata → preventiva → eficácia) ─────────────────────────
