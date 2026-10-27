@@ -244,8 +244,8 @@ async function main() {
   const hoje = partesBrt(new Date());
   for (let diasAtras = 13; diasAtras >= 1; diasAtras--) {
     const dia = meiaNoite(hoje.a, hoje.m, hoje.d - diasAtras);
-    for (const codigo of ["RQ 2.1", "RQ 3.1", "RQ 5.1"]) {
-      if ((codigo === "RQ 5.1" && diasAtras === 2) || (codigo === "RQ 2.1" && diasAtras === 1)) continue; // falhas propositais
+    for (const codigo of ["RQ 2.1", "RQ 3.1", "RQ 4.1"]) {
+      if ((codigo === "RQ 4.1" && diasAtras === 2) || (codigo === "RQ 2.1" && diasAtras === 1)) continue; // falhas propositais
       const m = (await modeloEfetivo(fabrica.id, codigo))!;
       await registrarExecucaoRq(
         ctx("OPERADOR"),
@@ -254,11 +254,11 @@ async function main() {
       );
     }
   }
-  const m61 = (await modeloEfetivo(fabrica.id, "RQ 6.1"))!;
+  const m71 = (await modeloEfetivo(fabrica.id, "RQ 7.1"))!;
   await registrarExecucaoRq(
     ctx("OPERADOR"),
     {
-      modeloId: m61.id,
+      modeloId: m71.id,
       referencia: chaveDia(meiaNoite(hoje.a, hoje.m, hoje.d - 10)),
       respostas: {
         iscas_integras: { valor: "NC", descricaoNc: "Porta-isca nº 14 (doca) quebrado e sem tampa.", acaoCorretiva: "Porta-isca substituído e empresa controladora acionada." },

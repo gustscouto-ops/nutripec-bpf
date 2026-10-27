@@ -8,7 +8,7 @@ import type { Ctx } from "../auth";
 import { modeloEfetivo, registrarExecucaoRq, resolverReferencia } from "./rq";
 
 /**
- * Recall em um clique (POP 08): cruza entrada → produção → saída a partir de um lote suspeito.
+ * Recall em um clique (POP 09): cruza entrada → produção → saída a partir de um lote suspeito.
  *  - Lote de MP: todas as bateladas em que foi dosado, os lotes de produto gerados, os clientes e o estoque.
  *  - Lote de produto: os lotes de MP de origem e, a partir deles, todos os outros lotes de produto que
  *    usaram os mesmos insumos (recolhimento ampliado), com clientes e estoque.
@@ -175,7 +175,7 @@ export type RecallInput = { tipo: TipoRecall; alvoTipo: AlvoRecall; alvoId: stri
 const MAX_DURACAO_MIN = 24 * 60;
 
 /**
- * Assina o simulado (ou recolhimento real) e congela o resultado. Um simulado também registra o RQ 8.1
+ * Assina o simulado (ou recolhimento real) e congela o resultado. Um simulado também registra o RQ 9.1
  * do semestre, se ainda não houver, com o tempo medido e a conclusão do rastreio.
  */
 export async function registrarRecall(ctx: Ctx, input: RecallInput, opcoes: { agora?: Date } = {}) {
@@ -245,12 +245,12 @@ export async function registrarRecall(ctx: Ctx, input: RecallInput, opcoes: { ag
   });
 }
 
-/** Monta as respostas do RQ 8.1 vigente, ou null se o semestre já tem registro ou o formulário foi personalizado. */
+/** Monta as respostas do RQ 9.1 vigente, ou null se o semestre já tem registro ou o formulário foi personalizado. */
 async function prepararRq81(tenantId: string, agora: Date, duracaoMin: number, resultado: ResultadoRecall) {
-  const modelo = await modeloEfetivo(tenantId, "RQ 8.1");
+  const modelo = await modeloEfetivo(tenantId, "RQ 9.1");
   if (!modelo?.ativo) return null;
   const { periodo } = resolverReferencia(modelo, null, agora);
-  const feito = await prisma.rqExecucao.count({ where: { tenantId, codigoRq: "RQ 8.1", referenciaInicio: periodo.inicio } });
+  const feito = await prisma.rqExecucao.count({ where: { tenantId, codigoRq: "RQ 9.1", referenciaInicio: periodo.inicio } });
   if (feito) return null;
 
   const campos = modelo.campos as unknown as CampoRq[];

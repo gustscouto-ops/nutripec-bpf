@@ -101,7 +101,7 @@ export function FormOrdem({ produtos, lotes, tolerancia, usuario, pendentes }: {
   return (
     <div className="mx-auto max-w-4xl space-y-5 pb-10">
       <div>
-        <div className="text-xs font-semibold tracking-wide text-marca-700 uppercase">POP 07 · RQ 7.1 — Sequenciamento de bateladas</div>
+        <div className="text-xs font-semibold tracking-wide text-marca-700 uppercase">POP 05 · RQ 5.1 — Sequenciamento de bateladas</div>
         <h1 className="text-2xl font-bold">Nova ordem de produção</h1>
       </div>
       {pendentes > 0 && <Alerta tipo="aviso">{pendentes} produto(s) não aparecem porque a fórmula ainda não foi aprovada pelo RT.</Alerta>}

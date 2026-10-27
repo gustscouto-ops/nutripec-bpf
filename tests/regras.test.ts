@@ -3,7 +3,8 @@ import { avaliarRespostas, type CampoRq } from "@/lib/rq/campos";
 import { aplicarRegraLote, gerarCodigoUnico } from "@/lib/lote";
 import { normalizarItens, validarSomaFormula } from "@/lib/servicos/formula";
 import { hashAssinatura, jsonCanonico } from "@/lib/hash";
-import { CAMPOS_RQ_1_2 } from "@/lib/rq/catalogo";
+import { CAMPOS_RQ_1_2, CATALOGO_POPS } from "@/lib/rq/catalogo";
+import { CATALOGO_ITS } from "@/lib/rq/instrucoes";
 
 const campos: CampoRq[] = [
   { id: "lona", rotulo: "Lona íntegra", tipo: "conformidade" },
@@ -88,5 +89,18 @@ describe("hash da assinatura", () => {
   });
   it("muda quando o conteúdo muda", () => {
     expect(hashAssinatura({ umidade: 12 })).not.toBe(hashAssinatura({ umidade: 12.1 }));
+  });
+});
+
+describe("catálogo dos 9 POPs", () => {
+  it("segue a ordem dos manuais de BPF (IN 04/2007) e numera RQs e ITs pelo POP", () => {
+    const temas = ["Fornecedores", "Limpeza", "Higiene e Saúde", "Água", "Contaminação Cruzada", "Manutenção e Calibração", "Pragas", "Resíduos", "Rastreabilidade"];
+    expect(CATALOGO_POPS.map((p) => p.numeroPop)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    CATALOGO_POPS.forEach((p, i) => {
+      expect(p.titulo).toContain(temas[i]);
+      for (const rq of p.rqs) expect(rq.codigoRq.startsWith(`RQ ${p.numeroPop}.`)).toBe(true);
+    });
+    for (const it of CATALOGO_ITS) expect(it.codigo.startsWith(`IT 0${it.popNumero}.`)).toBe(true);
+    expect(CATALOGO_POPS[8].rqs[0].codigoRq).toBe("RQ 9.1"); // simulado de recall
   });
 });

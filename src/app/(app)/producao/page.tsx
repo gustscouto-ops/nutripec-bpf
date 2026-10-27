@@ -19,7 +19,7 @@ export default async function Producao() {
     <div className="mx-auto max-w-7xl">
       <Cabecalho
         titulo="Produção e sequenciamento"
-        subtitulo="POP 07 — cada ordem registra a sequência do dia e os lotes de matéria-prima dosados (base da rastreabilidade)."
+        subtitulo="POP 05 — cada ordem registra a sequência do dia e os lotes de matéria-prima dosados (base da rastreabilidade)."
         acoes={pode(ctx.perfil, "operacao:registrar") && <BotaoLink href="/producao/nova">+ Nova ordem de produção</BotaoLink>}
       />
       <div className="cartao overflow-x-auto p-0 sm:p-0">

@@ -84,7 +84,7 @@ describe("recall em um clique", () => {
     expect(r.pendencias.some((p) => p.includes("C1-C") && p.includes("esperados"))).toBe(true);
   });
 
-  it("simulado assinado registra o RQ 8.1 do semestre e fica imutável", async () => {
+  it("simulado assinado registra o RQ 9.1 do semestre e fica imutável", async () => {
     const agora = new Date();
     const { registro, rqExecucaoId } = await registrarRecall(ctx, { tipo: "SIMULADO", alvoTipo: "LOTE_PRODUTO", alvoId: ids.op1, motivo: "Simulado semestral", iniciadoEm: new Date(agora.getTime() - 12 * 60_000) }, { agora });
     expect(registro.numero).toBe(1);
@@ -92,7 +92,7 @@ describe("recall em um clique", () => {
     expect(registro.completo).toBe(false);
     expect(registro.hash).toHaveLength(64);
     const rq = await prisma.rqExecucao.findUniqueOrThrow({ where: { id: rqExecucaoId! } });
-    expect(rq.codigoRq).toBe("RQ 8.1");
+    expect(rq.codigoRq).toBe("RQ 9.1");
     expect(rq.status).toBe("NAO_CONFORME"); // rastreio com pendências
     expect((rq.respostas as Record<string, { valor: unknown }>).tempo_min.valor).toBe(12);
     const ncs = await prisma.naoConformidade.count({ where: { rqExecucaoId: rq.id } });
@@ -101,7 +101,7 @@ describe("recall em um clique", () => {
     await expect(prisma.recallRegistro.delete({ where: { id: registro.id } })).rejects.toThrow();
   });
 
-  it("segundo simulado no semestre não duplica o RQ 8.1; recolhimento real não gera RQ", async () => {
+  it("segundo simulado no semestre não duplica o RQ 9.1; recolhimento real não gera RQ", async () => {
     const agora = new Date();
     const s2 = await registrarRecall(ctx, { tipo: "SIMULADO", alvoTipo: "LOTE_MP", alvoId: ids.fos, motivo: "Treinamento", iniciadoEm: new Date(agora.getTime() - 3 * 60_000) }, { agora });
     expect(s2.registro.numero).toBe(2);
@@ -184,7 +184,7 @@ describe("dossiê de fiscalização", () => {
   it("gera o ZIP com índice, PDFs por POP, planilhas e manifesto SHA-256 conferível", async () => {
     const hoje = chaveDia(new Date());
     const { buffer, registros } = await gerarPacoteDossie(ctx, chaveDia(new Date(Date.now() - 30 * 86_400_000)), hoje);
-    expect(registros).toBe(2); // RQ 1.2 + RQ 8.1
+    expect(registros).toBe(2); // RQ 1.2 + RQ 9.1
     const zip = await JSZip.loadAsync(buffer);
     const nomes = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
     const raiz = nomes[0].split("/")[0];
@@ -193,7 +193,7 @@ describe("dossiê de fiscalização", () => {
     expect(rel).toContain("Nao-conformidades.pdf");
     expect(rel).toContain("Trilha-de-auditoria.csv");
     expect(rel.some((n) => n.startsWith("POP-01 ") && n.includes("RQ-1.2 n0001"))).toBe(true);
-    expect(rel.some((n) => n.startsWith("POP-08 ") && n.includes("RQ-8.1"))).toBe(true);
+    expect(rel.some((n) => n.startsWith("POP-09 ") && n.includes("RQ-9.1"))).toBe(true);
     expect(rel.filter((n) => n.startsWith("Recall/"))).toHaveLength(3);
     const manifesto = await zip.file(`${raiz}/MANIFESTO-SHA256.txt`)!.async("string");
     const [hash, arquivo] = manifesto.split("\n").find((l) => l.endsWith("Rastreabilidade/3-expedicao.csv"))!.split("  ");

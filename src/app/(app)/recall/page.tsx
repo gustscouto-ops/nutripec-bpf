@@ -20,7 +20,7 @@ export default async function Recalls() {
     <div className="mx-auto max-w-5xl">
       <Cabecalho
         titulo="Recall e simulados"
-        subtitulo="POP 08: a partir de um lote suspeito, o sistema cruza entrada, produção e expedição e mede o tempo de rastreio. O simulado assinado registra o RQ 8.1 do semestre."
+        subtitulo="POP 09: a partir de um lote suspeito, o sistema cruza entrada, produção e expedição e mede o tempo de rastreio. O simulado assinado registra o RQ 9.1 do semestre."
         acoes={
           pode(ctx.perfil, "recall:registrar") && (
             <Link href={`/recall/novo?inicio=${Date.now()}`} className="btn-primario">

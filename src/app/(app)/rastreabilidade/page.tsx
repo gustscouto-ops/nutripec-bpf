@@ -12,7 +12,7 @@ export default async function Rastreabilidade({ searchParams }: { searchParams: 
   const r = await buscarLotes(ctx.tenantId, q);
   return (
     <div className="mx-auto max-w-5xl">
-      <Cabecalho titulo="Rastreabilidade bidirecional" subtitulo="POP 08 — do fornecedor ao cliente e do cliente ao fornecedor, em um clique." />
+      <Cabecalho titulo="Rastreabilidade bidirecional" subtitulo="POP 09 — do fornecedor ao cliente e do cliente ao fornecedor, em um clique." />
       <form className="cartao mb-6 flex flex-col gap-2 sm:flex-row">
         <input name="q" defaultValue={q} autoFocus placeholder="Lote de produto (ex.: C130-031026-01), lote interno de MP, lote do fornecedor ou NF" className="campo text-lg" />
         <button className="btn-primario">Rastrear</button>

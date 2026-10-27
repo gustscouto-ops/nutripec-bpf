@@ -1,7 +1,7 @@
 import { prisma, num } from "../db";
 
 /**
- * Rastreabilidade bidirecional (POP 08).
+ * Rastreabilidade bidirecional (POP 09).
  *  - Para trás: lote de produto acabado → bateladas → lotes de MP → NF / fornecedor / RQ de recebimento.
  *  - Para frente (recall): lote de MP → ordens em que foi dosado → produtos → clientes → saldo em estoque.
  */

@@ -28,7 +28,7 @@ export function inicioDoDia(data: Date) {
 }
 
 /**
- * Registra uma ordem/batida de produção (POP 07 — sequenciamento) e o consumo de lotes de MP,
+ * Registra uma ordem/batida de produção (POP 05 — prevenção de contaminação cruzada e sequenciamento) e o consumo de lotes de MP,
  * que é a ligação da rastreabilidade entrada → transformação.
  */
 export async function registrarOrdem(ctx: Ctx, input: OrdemInput) {

@@ -76,7 +76,7 @@ export default async function Dossie({ searchParams }: { searchParams: Promise<{
             />
             <Indicador rotulo="Registros no período" valor={resumo.totalRegistros} detalhe="cada um vira um PDF assinado" cor="azul" />
             <Indicador rotulo="Não conformidades" valor={resumo.ncs.total} detalhe={`${resumo.ncs.encerradas} encerradas · ${resumo.ncs.abertas} em tratamento`} cor={resumo.ncs.abertas ? "amarelo" : "verde"} />
-            <Indicador rotulo="Simulados de recall" valor={resumo.recalls} detalhe="POP 08" cor={resumo.recalls ? "verde" : "amarelo"} href="/recall" />
+            <Indicador rotulo="Simulados de recall" valor={resumo.recalls} detalhe="POP 09" cor={resumo.recalls ? "verde" : "amarelo"} href="/recall" />
           </div>
 
           <section className="cartao flex flex-wrap items-center justify-between gap-3">

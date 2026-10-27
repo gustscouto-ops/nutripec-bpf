@@ -1,7 +1,7 @@
 import type { CampoRq } from "./campos";
 import type { Frequencia } from "@prisma/client";
 
-/** Os 9 POPs obrigatórios (IN MAPA 04/2007) e suas RQs padrão. */
+/** Os 9 POPs obrigatórios (IN MAPA 04/2007), na ordem dos manuais de BPF do setor, e suas RQs padrão. */
 
 export const CAMPOS_RQ_1_2: CampoRq[] = [
   { id: "veiculo_limpo", rotulo: "Carroceria limpa, seca e sem odores estranhos", tipo: "conformidade" },
@@ -45,9 +45,9 @@ export type PopCatalogo = {
 export const CATALOGO_POPS: PopCatalogo[] = [
   {
     numeroPop: 1,
-    titulo: "Qualificação de Fornecedores e Matérias-Primas",
+    titulo: "Qualificação de Fornecedores e Controle de Matérias-Primas e Embalagens",
     descricao:
-      "Estabelece critérios para seleção, avaliação e qualificação de fornecedores, e para inspeção e aceite de matérias-primas no recebimento.",
+      "Critérios de homologação de fornecedores, inspeção no recebimento, especificações de ingredientes e controle de materiais de embalagem primária e secundária.",
     rqs: [
       {
         codigoRq: "RQ 1.1",
@@ -65,8 +65,9 @@ export const CATALOGO_POPS: PopCatalogo[] = [
   },
   {
     numeroPop: 2,
-    titulo: "Limpeza e Higienização das Instalações e Equipamentos",
-    descricao: "Define procedimentos, frequências e responsáveis pela limpeza das áreas, equipamentos e utensílios.",
+    titulo: "Limpeza e Higienização de Instalações, Equipamentos e Utensílios",
+    descricao:
+      "Frequência, métodos, produtos químicos autorizados, diluições e responsáveis pela limpeza das áreas internas, externas, máquinas e ferramentas de produção.",
     rqs: [
       {
         codigoRq: "RQ 2.1",
@@ -90,7 +91,8 @@ export const CATALOGO_POPS: PopCatalogo[] = [
   {
     numeroPop: 3,
     titulo: "Higiene e Saúde do Pessoal",
-    descricao: "Requisitos de higiene pessoal, uniformes, EPIs e controle de saúde dos colaboradores.",
+    descricao:
+      "Padrões de higiene pessoal, uso correto de uniformes e EPIs, controle de saúde dos colaboradores e regras de conduta na área fabril.",
     rqs: [
       {
         codigoRq: "RQ 3.1",
@@ -112,39 +114,18 @@ export const CATALOGO_POPS: PopCatalogo[] = [
   },
   {
     numeroPop: 4,
-    titulo: "Manutenção e Calibração de Equipamentos",
-    descricao: "Programa de manutenção preventiva/corretiva e calibração de balanças, dosadores e instrumentos.",
+    titulo: "Potabilidade da Água e Higienização de Reservatórios",
+    descricao:
+      "Controle da qualidade físico-química e microbiológica da água utilizada na fábrica e rotina de limpeza e desinfecção de caixas d'água e cisternas.",
     rqs: [
       {
         codigoRq: "RQ 4.1",
-        titulo: "Calibração de Balanças/Dosadores",
-        frequencia: "SEMESTRAL",
-        campos: [
-          { id: "erro_balanca", rotulo: "Erro da balança com peso padrão", tipo: "numerico", unidade: "%", min: -0.5, max: 0.5 },
-          CONFORMIDADE("certificado", "Certificado de calibração emitido"),
-        ],
-      },
-      {
-        codigoRq: "RQ 4.2",
-        titulo: "Manutenção Preventiva de Misturadores",
-        frequencia: "MENSAL",
-        campos: [CONFORMIDADE("helicoides", "Helicoides/pás sem desgaste excessivo"), CONFORMIDADE("vedacao", "Comporta com vedação adequada")],
-      },
-    ],
-  },
-  {
-    numeroPop: 5,
-    titulo: "Controle de Água de Consumo",
-    descricao: "Garante a potabilidade da água usada na fábrica (cloração, limpeza de reservatórios e análises).",
-    rqs: [
-      {
-        codigoRq: "RQ 5.1",
         titulo: "Cloração Diária da Água",
         frequencia: "DIARIA",
         campos: [{ id: "cloro", rotulo: "Cloro residual livre", tipo: "numerico", unidade: "mg/L", min: 0.2, max: 2 }],
       },
       {
-        codigoRq: "RQ 5.2",
+        codigoRq: "RQ 4.2",
         titulo: "Laudos Microbiológicos da Caixa d'Água",
         frequencia: "SEMESTRAL",
         campos: [CONFORMIDADE("laudo_potavel", "Laudo indica água potável")],
@@ -152,40 +133,19 @@ export const CATALOGO_POPS: PopCatalogo[] = [
     ],
   },
   {
-    numeroPop: 6,
-    titulo: "Controle Integrado de Pragas e Vetores",
-    descricao: "Medidas preventivas e corretivas para impedir a atração, abrigo e proliferação de pragas.",
+    numeroPop: 5,
+    titulo: "Prevenção de Contaminação Cruzada",
+    descricao:
+      "Medidas operacionais para evitar o contato indesejado entre matérias-primas, produtos com medicamentos e rações comuns, abrangendo o fluxo de produção e a limpeza de linhas.",
     rqs: [
       {
-        codigoRq: "RQ 6.1",
-        titulo: "Monitoramento de Iscas e Armadilhas",
-        frequencia: "SEMANAL",
-        campos: [
-          CONFORMIDADE("iscas_integras", "Porta-iscas íntegros e identificados"),
-          { id: "capturas", rotulo: "Capturas/consumo identificados", tipo: "numerico", unidade: "un", min: 0, max: 0 },
-        ],
-      },
-      {
-        codigoRq: "RQ 6.2",
-        titulo: "Certificado de Empresa Desinsetizadora",
-        frequencia: "MENSAL",
-        campos: [CONFORMIDADE("certificado_vigente", "Certificado de execução vigente")],
-      },
-    ],
-  },
-  {
-    numeroPop: 7,
-    titulo: "Prevenção de Contaminação Cruzada e Sequenciamento",
-    descricao: "Sequenciamento de produção, limpeza de linha (flush) e segregação de medicamentos/aditivos.",
-    rqs: [
-      {
-        codigoRq: "RQ 7.1",
+        codigoRq: "RQ 5.1",
         titulo: "Sequenciamento Diário de Bateladas",
         frequencia: "QUANDO_OCORRE",
         campos: [CONFORMIDADE("sequencia_respeitada", "Sequência de produção respeitada")],
       },
       {
-        codigoRq: "RQ 7.2",
+        codigoRq: "RQ 5.2",
         titulo: "Procedimento de Flush / Linha Limpa",
         frequencia: "QUANDO_OCORRE",
         campos: [
@@ -196,33 +156,81 @@ export const CATALOGO_POPS: PopCatalogo[] = [
     ],
   },
   {
+    numeroPop: 6,
+    titulo: "Manutenção e Calibração de Equipamentos e Instrumentos",
+    descricao:
+      "Cronograma de manutenções preventivas e corretivas e calibração periódica de balanças, dosadores e instrumentos críticos para a qualidade do produto final.",
+    rqs: [
+      {
+        codigoRq: "RQ 6.1",
+        titulo: "Calibração de Balanças/Dosadores",
+        frequencia: "SEMESTRAL",
+        campos: [
+          { id: "erro_balanca", rotulo: "Erro da balança com peso padrão", tipo: "numerico", unidade: "%", min: -0.5, max: 0.5 },
+          CONFORMIDADE("certificado", "Certificado de calibração emitido"),
+        ],
+      },
+      {
+        codigoRq: "RQ 6.2",
+        titulo: "Manutenção Preventiva de Misturadores",
+        frequencia: "MENSAL",
+        campos: [CONFORMIDADE("helicoides", "Helicoides/pás sem desgaste excessivo"), CONFORMIDADE("vedacao", "Comporta com vedação adequada")],
+      },
+    ],
+  },
+  {
+    numeroPop: 7,
+    titulo: "Controle Integrado de Pragas",
+    descricao:
+      "Prevenção da entrada e proliferação de insetos, roedores e aves, com uso seguro de domissanitários e monitoramento de armadilhas.",
+    rqs: [
+      {
+        codigoRq: "RQ 7.1",
+        titulo: "Monitoramento de Iscas e Armadilhas",
+        frequencia: "SEMANAL",
+        campos: [
+          CONFORMIDADE("iscas_integras", "Porta-iscas íntegros e identificados"),
+          { id: "capturas", rotulo: "Capturas/consumo identificados", tipo: "numerico", unidade: "un", min: 0, max: 0 },
+        ],
+      },
+      {
+        codigoRq: "RQ 7.2",
+        titulo: "Certificado de Empresa Desinsetizadora",
+        frequencia: "MENSAL",
+        campos: [CONFORMIDADE("certificado_vigente", "Certificado de execução vigente")],
+      },
+    ],
+  },
+  {
     numeroPop: 8,
-    titulo: "Rastreabilidade e Recolhimento (Recall)",
-    descricao: "Permite rastrear lotes da matéria-prima ao cliente e recolher produtos quando necessário.",
+    titulo: "Controle de Resíduos e Efluentes",
+    descricao:
+      "Manejo, armazenamento temporário e destinação correta de resíduos sólidos (lixo comum, sobras, varreduras e embalagens) e efluentes gerados na fábrica.",
     rqs: [
       {
         codigoRq: "RQ 8.1",
-        titulo: "Simulado de Recall / Rastreamento de Lote",
-        frequencia: "SEMESTRAL",
+        titulo: "Descarte de Embalagens Vazias e Varreduras",
+        frequencia: "SEMANAL",
         campos: [
-          { id: "tempo_min", rotulo: "Tempo para rastrear o lote", tipo: "numerico", unidade: "min", max: 240 },
-          CONFORMIDADE("rastreio_completo", "Rastreio completo (entrada → produção → saída)"),
+          CONFORMIDADE("segregacao", "Resíduos segregados e identificados"),
+          { id: "varredura_kg", rotulo: "Varredura descartada", tipo: "numerico", unidade: "kg", min: 0 },
         ],
       },
     ],
   },
   {
     numeroPop: 9,
-    titulo: "Gestão de Resíduos e Embalagens",
-    descricao: "Coleta, segregação, armazenamento temporário e destinação de resíduos, varreduras e embalagens.",
+    titulo: "Programa de Rastreabilidade e Recolhimento de Produtos (Recall)",
+    descricao:
+      "Rastreio de lotes desde a matéria-prima até a expedição e passo a passo para o recolhimento rápido e seguro de produtos no mercado em caso de não conformidade grave.",
     rqs: [
       {
         codigoRq: "RQ 9.1",
-        titulo: "Descarte de Embalagens Vazias e Varreduras",
-        frequencia: "SEMANAL",
+        titulo: "Simulado de Recall / Rastreamento de Lote",
+        frequencia: "SEMESTRAL",
         campos: [
-          CONFORMIDADE("segregacao", "Resíduos segregados e identificados"),
-          { id: "varredura_kg", rotulo: "Varredura descartada", tipo: "numerico", unidade: "kg", min: 0 },
+          { id: "tempo_min", rotulo: "Tempo para rastrear o lote", tipo: "numerico", unidade: "min", max: 240 },
+          CONFORMIDADE("rastreio_completo", "Rastreio completo (entrada → produção → saída)"),
         ],
       },
     ],

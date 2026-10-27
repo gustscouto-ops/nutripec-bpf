@@ -73,7 +73,7 @@ export function FluxoNc({ id, status, plano, pode, nomeUsuario }: { id: string; 
               <button type="button" onClick={() => setEficaz(true)} className={`btn border-2 ${eficaz ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-200 bg-white"}`}>Ação eficaz</button>
               <button type="button" onClick={() => setEficaz(false)} className={`btn border-2 ${!eficaz ? "border-red-600 bg-red-600 text-white" : "border-slate-200 bg-white"}`}>Não foi eficaz</button>
             </div>
-            <Campo rotulo="Evidência da verificação *" ajuda="Ex.: 4 recebimentos seguintes sem a ocorrência; RQ 6.1 das últimas 2 semanas conforme.">
+            <Campo rotulo="Evidência da verificação *" ajuda="Ex.: 4 recebimentos seguintes sem a ocorrência; RQ 7.1 das últimas 2 semanas conforme.">
               <textarea value={verificacao} onChange={(e) => setVerificacao(e.target.value)} rows={2} className="campo" />
             </Campo>
             <Assinatura

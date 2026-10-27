@@ -12,7 +12,7 @@ ancorado na **IN MAPA nº 04/2007**. Este repositório contém as **Fases 1 (MVP
 | Aprovação e assinatura da fórmula pelo RT (alterar fórmula aprovada gera nova versão e bloqueia a produção) | ✅ |
 | **RQ 1.2 Recebimento de Carga** mobile em 4 etapas, lote interno automático, checklist com bloqueio de NC, até 5 fotos, assinatura por senha, PDF | ✅ |
 | Quarentena automática de carga não conforme + decisão assinada do RT | ✅ |
-| Produção / sequenciamento (POP 07) com consumo de lotes FEFO, controle de saldo e desvio de formulação | ✅ |
+| Produção / sequenciamento (POP 05) com consumo de lotes FEFO, controle de saldo e desvio de formulação | ✅ |
 | Expedição e rastreabilidade bidirecional (para trás e recall para frente) | ✅ |
 | Trilha de auditoria imutável (trigger no PostgreSQL) | ✅ |
 | Painel de gestão à vista (conformidade, quarentena, produção, NC por fornecedor) | ✅ |
@@ -43,7 +43,7 @@ PDFKit (PDF dos RQs) · jose (sessão JWT em cookie httpOnly) · bcrypt · Vites
 | Módulo | Situação |
 |---|---|
 | **Recall em 1 clique** (`/recall`): a partir de um lote de MP suspeito ou de um lote de produto reclamado, cruza entrada → produção → expedição; no lote de produto amplia para os outros lotes que usaram os mesmos insumos. Mostra sacas em estoque a bloquear, clientes e NFs a notificar e pendências do rastreio (lote sem RQ 1.2, consumo apontado abaixo do esperado, saldo negativo) | ✅ |
-| Simulado ou recolhimento real **assinado e imutável** (trigger no banco), com cronômetro do início à assinatura, relatório em PDF e planilha de clientes. O simulado registra sozinho o **RQ 8.1** do semestre (tempo e conclusão; com pendências vira NC) | ✅ |
+| Simulado ou recolhimento real **assinado e imutável** (trigger no banco), com cronômetro do início à assinatura, relatório em PDF e planilha de clientes. O simulado registra sozinho o **RQ 9.1** do semestre (tempo e conclusão; com pendências vira NC) | ✅ |
 | **Rótulo MAPA** gerado da fórmula aprovada: níveis de garantia, composição (escrita ou pelos ingredientes em ordem decrescente), uso, restrições, conservação, identificação e registros, peso, lote, fabricação e validade calculada; conferência dos itens obrigatórios | ✅ |
 | **Etiquetas ZPL** (Zebra, 203 ou 300 dpi, 100×150, 100×100 ou 100×200 mm) com código de barras Code 128 do lote e quantidade = sacas produzidas; fonte reduz sozinha para caber; impressão bloqueada sem aprovação do RT; impressão pelo navegador ajustada ao tamanho; emissão auditada | ✅ |
 | **Preparar Auditoria MAPA** (`/dossie`): resumo do período com cobertura da agenda por RQ e um ZIP com índice em PDF, um PDF por RQ organizado por POP, relatório de NCs com o ciclo completo, simulados de recall, planilhas de rastreabilidade e cadastros, trilha de auditoria e `MANIFESTO-SHA256.txt` | ✅ |
@@ -88,7 +88,7 @@ Usuários de demonstração (senha `nutripec123`):
 | consultor@nutripec.demo | Consultor de BPF (acessa 2 fábricas) |
 | auditor@nutripec.demo | Auditor fiscal (somente leitura) |
 
-Testes: `npm test` (regras puras, agenda, rótulo/ZPL e integração contra o banco do `DATABASE_URL`; 70 testes; os de PDF do manual rodam quando o LibreOffice está instalado).
+Testes: `npm test` (regras puras, agenda, rótulo/ZPL e integração contra o banco do `DATABASE_URL`; 71 testes; os de PDF do manual rodam quando o LibreOffice está instalado).
 
 ### Alertas (opcional)
 
@@ -131,7 +131,7 @@ O sistema envia no máximo um resumo por dia para cada destinatário.
   personalização cria a cópia da empresa (`origem_id`). Índices únicos parciais garantem um padrão e uma cópia por código.
 - **Numeração** por empresa e código de RQ (e das NCs) com `pg_advisory_xact_lock`, sem buracos nem duplicidade.
 - **Recall como fotografia**: `recalls.resultado` guarda a árvore completa no momento da assinatura (com hash), então o
-  relatório não muda com movimentações posteriores. O RQ 8.1 é gravado na mesma transação (`registrarExecucaoRq` aceita `tx`).
+  relatório não muda com movimentações posteriores. O RQ 9.1 é gravado na mesma transação (`registrarExecucaoRq` aceita `tx`).
 - **ZPL sem dependências** (`src/lib/rotulo.ts`): módulo puro que alimenta a prévia na tela e o arquivo; texto com `^CI28`
   (UTF-8) e `^FB` para quebra de linha; os caracteres de comando `^` e `~` são removidos do conteúdo.
 - **Dossiê em ZIP** (`src/lib/servicos/pacote-dossie.ts`, JSZip): gerado sob demanda, até 366 dias por pacote, com a geração

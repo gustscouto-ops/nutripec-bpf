@@ -13,7 +13,7 @@ export async function pdfRecall(tenantId: string, id: string): Promise<Buffer | 
   const numero = String(r.numero).padStart(4, "0");
   const simulado = r.tipo === "SIMULADO";
   const doc = novoDocumento(`${simulado ? "Simulado de recall" : "Recolhimento"} nº ${numero}`);
-  cabecalho(doc, r.tenant, ["POP 08 · Rastreabilidade e Recall", `${simulado ? "Simulado" : "Recolhimento"} nº ${numero}`, fmtDataHora(r.concluidoEm)], simulado ? "Simulado de Recall / Rastreamento de Lote" : "Recolhimento de Produto (Recall)");
+  cabecalho(doc, r.tenant, ["POP 09 · Rastreabilidade e Recall", `${simulado ? "Simulado" : "Recolhimento"} nº ${numero}`, fmtDataHora(r.concluidoEm)], simulado ? "Simulado de Recall / Rastreamento de Lote" : "Recolhimento de Produto (Recall)");
 
   const w = largura(doc);
   const y = doc.y + 4;
@@ -32,7 +32,7 @@ export async function pdfRecall(tenantId: string, id: string): Promise<Buffer | 
     ["Alvo", res.alvo.descricao],
     ["Motivo", r.motivo],
     ["Início / conclusão", `${fmtDataHora(r.iniciadoEm)} → ${fmtDataHora(r.concluidoEm)}`],
-    ["Registro da qualidade", r.rqExecucao ? `${r.rqExecucao.codigoRq} nº ${String(r.rqExecucao.numero).padStart(4, "0")}` : simulado ? "RQ 8.1 do período já registrado" : "—"],
+    ["Registro da qualidade", r.rqExecucao ? `${r.rqExecucao.codigoRq} nº ${String(r.rqExecucao.numero).padStart(4, "0")}` : simulado ? "RQ 9.1 do período já registrado" : "—"],
   ]);
 
   secao(doc, "Resumo");

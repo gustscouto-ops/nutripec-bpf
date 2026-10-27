@@ -9,7 +9,7 @@ import { acaoRegistrarRecall } from "../actions";
 export function FormRecall({ alvoTipo, alvoId, iniciadoEm, usuario }: { alvoTipo: AlvoRecall; alvoId: string; iniciadoEm: number; usuario: string }) {
   const router = useRouter();
   const [tipo, setTipo] = useState<TipoRecall>("SIMULADO");
-  const [motivo, setMotivo] = useState("Simulado semestral do POP 08");
+  const [motivo, setMotivo] = useState("Simulado semestral do POP 09");
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
@@ -28,7 +28,7 @@ export function FormRecall({ alvoTipo, alvoId, iniciadoEm, usuario }: { alvoTipo
       <div className="grid gap-2 sm:grid-cols-2">
         {(
           [
-            ["SIMULADO", "Simulado", "Exercício do POP 08. Registra o RQ 8.1 do semestre, se ainda não houver."],
+            ["SIMULADO", "Simulado", "Exercício do POP 09. Registra o RQ 9.1 do semestre, se ainda não houver."],
             ["REAL", "Recolhimento real", "Recall de verdade: o relatório lista clientes a notificar e estoque a bloquear."],
           ] as const
         ).map(([v, r, d]) => (
@@ -37,7 +37,7 @@ export function FormRecall({ alvoTipo, alvoId, iniciadoEm, usuario }: { alvoTipo
             type="button"
             onClick={() => {
               setTipo(v);
-              setMotivo(v === "SIMULADO" ? "Simulado semestral do POP 08" : "");
+              setMotivo(v === "SIMULADO" ? "Simulado semestral do POP 09" : "");
             }}
             className={`rounded-lg border-2 p-3 text-left ${tipo === v ? (v === "REAL" ? "border-red-600 bg-red-50" : "border-marca-600 bg-marca-50") : "border-slate-200"}`}
           >

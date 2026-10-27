@@ -38,7 +38,7 @@ export default async function NovoRecall({ searchParams }: { searchParams: Promi
     <div className="mx-auto max-w-6xl space-y-5 pb-10">
       <Cabecalho
         titulo="Simulado de recall"
-        subtitulo={`Cronômetro iniciado em ${dataHora(new Date(inicio))}. O tempo até a assinatura vai para o RQ 8.1.`}
+        subtitulo={`Cronômetro iniciado em ${dataHora(new Date(inicio))}. O tempo até a assinatura vai para o RQ 9.1.`}
         acoes={
           <Link href="/recall" className="btn-secundario">
             Cancelar

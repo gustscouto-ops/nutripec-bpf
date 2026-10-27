@@ -85,7 +85,7 @@ describe("não conformidades", () => {
     const { execucao, ncs } = await registrarExecucaoRq(
       ctx,
       {
-        modeloId: await id("RQ 6.1"),
+        modeloId: await id("RQ 7.1"),
         respostas: { iscas_integras: { valor: "C" }, capturas: { valor: 2, descricaoNc: "Dois roedores no PI-04", acaoCorretiva: "Isca reposta e área isolada" } },
         fotos: [],
       },
@@ -93,7 +93,7 @@ describe("não conformidades", () => {
     );
     expect(execucao.status).toBe("NAO_CONFORME");
     expect(ncs).toHaveLength(1);
-    expect(ncs[0]).toMatchObject({ numero: 1, origem: "RQ", status: "ABERTA", popNumero: 6, acaoImediata: "Isca reposta e área isolada" });
+    expect(ncs[0]).toMatchObject({ numero: 1, origem: "RQ", status: "ABERTA", popNumero: 7, acaoImediata: "Isca reposta e área isolada" });
     ncId = ncs[0].id;
   });
 

@@ -44,7 +44,7 @@ export default async function RecallDetalhe({ params, searchParams }: { params: 
       {novo && (
         <Alerta tipo="sucesso">
           {ROTULO_TIPO_RECALL[r.tipo]} assinado em {r.duracaoMin} min.
-          {r.rqExecucao ? ` ${r.rqExecucao.codigoRq} nº ${String(r.rqExecucao.numero).padStart(4, "0")} registrado automaticamente.` : r.tipo === "SIMULADO" ? " O RQ 8.1 deste semestre já estava registrado." : ""}
+          {r.rqExecucao ? ` ${r.rqExecucao.codigoRq} nº ${String(r.rqExecucao.numero).padStart(4, "0")} registrado automaticamente.` : r.tipo === "SIMULADO" ? " O RQ 9.1 deste semestre já estava registrado." : ""}
         </Alerta>
       )}
       <section className="cartao">
