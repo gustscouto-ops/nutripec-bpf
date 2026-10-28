@@ -8,13 +8,14 @@ import { dataHora } from "@/lib/formato";
 
 export const metadata = { title: "Registros da qualidade" };
 
-export default async function Rqs({ searchParams }: { searchParams: Promise<{ pop?: string; status?: string; p?: string }> }) {
+export default async function Rqs({ searchParams }: { searchParams: Promise<{ pop?: string; rq?: string; status?: string; p?: string }> }) {
   const ctx = await exigirCtx();
-  const { pop, status, p = "1" } = await searchParams;
+  const { pop, rq, status, p = "1" } = await searchParams;
   const pagina = Math.max(1, Number(p) || 1);
   const where: Prisma.RqExecucaoWhereInput = {
     tenantId: ctx.tenantId,
     ...(pop ? { modelo: { pop: { numeroPop: Number(pop) } } } : {}),
+    ...(rq ? { codigoRq: rq } : {}),
     ...(status === "NAO_CONFORME" || status === "CONFORME" ? { status } : {}),
     ...(status === "ATRASADO" ? { atrasado: true } : {}),
     ...(status === "SEM_VERIFICACAO" ? { verificacao: { is: null } } : {}),
@@ -35,19 +36,20 @@ export default async function Rqs({ searchParams }: { searchParams: Promise<{ po
     prisma.pop.findMany({ orderBy: { numeroPop: "asc" }, select: { numeroPop: true } }),
   ]);
   const q = (extra: Record<string, string | undefined>) => {
-    const u = new URLSearchParams(Object.entries({ pop, status, ...extra }).filter(([, v]) => v) as [string, string][]);
+    const u = new URLSearchParams(Object.entries({ pop, rq, status, ...extra }).filter(([, v]) => v) as [string, string][]);
     return `/rqs?${u}`;
   };
   return (
     <div className="mx-auto max-w-7xl">
       <Cabecalho titulo="Registros da qualidade (RQs)" subtitulo="Histórico assinado de todos os POPs. Cada registro gera PDF para auditoria." />
       <div className="mb-4 flex flex-wrap gap-2">
-        <Link href={q({ pop: undefined, p: undefined })} className={`rounded-full px-3 py-1.5 text-sm ${!pop ? "bg-marca-600 text-white" : "bg-white ring-1 ring-slate-200"}`}>Todos os POPs</Link>
+        <Link href={q({ pop: undefined, rq: undefined, p: undefined })} className={`rounded-full px-3 py-1.5 text-sm ${!pop && !rq ? "bg-marca-600 text-white" : "bg-white ring-1 ring-slate-200"}`}>Todos os POPs</Link>
         {pops.map((x) => (
-          <Link key={x.numeroPop} href={q({ pop: String(x.numeroPop), p: undefined })} className={`rounded-full px-3 py-1.5 text-sm ${pop === String(x.numeroPop) ? "bg-marca-600 text-white" : "bg-white ring-1 ring-slate-200"}`}>
+          <Link key={x.numeroPop} href={q({ pop: String(x.numeroPop), rq: undefined, p: undefined })} className={`rounded-full px-3 py-1.5 text-sm ${pop === String(x.numeroPop) ? "bg-marca-600 text-white" : "bg-white ring-1 ring-slate-200"}`}>
             POP {String(x.numeroPop).padStart(2, "0")}
           </Link>
         ))}
+        {rq && <span className="rounded-full bg-marca-600 px-3 py-1.5 text-sm text-white">{rq}</span>}
         <span className="mx-1 hidden w-px bg-slate-300 sm:block" />
         {[["", "Qualquer resultado"], ["NAO_CONFORME", "Não conformes"], ["ATRASADO", "Fora do prazo"], ["SEM_VERIFICACAO", "Aguardando verificação"]].map(([v, r]) => (
           <Link key={v} href={q({ status: v || undefined, p: undefined })} className={`rounded-full px-3 py-1.5 text-sm ${(status ?? "") === v ? "bg-slate-800 text-white" : "bg-white ring-1 ring-slate-200"}`}>{r}</Link>

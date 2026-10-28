@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
+import { linkAtivo, type GrupoMenu, type ItemMenu, type LinkMenu } from "@/lib/menu";
 
-export type ItemMenu = { href: string; rotulo: string; icone: string; contador?: number } | { secao: string };
+export type { ItemMenu } from "@/lib/menu";
 
 const ICONES: Record<string, string> = {
   painel: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
@@ -31,35 +32,85 @@ function Icone({ nome }: { nome: string }) {
   );
 }
 
+function Contador({ n }: { n?: number }) {
+  return n ? <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{n}</span> : null;
+}
+
 export function Navegacao({ itens, empresa, rodape }: { itens: ItemMenu[]; empresa: string; rodape: ReactNode }) {
   const path = usePathname();
+  const query = useSearchParams();
   const [aberto, setAberto] = useState(false);
-  const ativo = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const ativo = (href: string) => linkAtivo(href, path, query);
+  const grupoAtivo = (g: GrupoMenu) => g.filhos.some((f) => ativo(f.href));
+  const [expandidos, setExpandidos] = useState<Set<string>>(
+    () => new Set(itens.filter((i): i is GrupoMenu => "grupo" in i && grupoAtivo(i)).map((g) => g.grupo)),
+  );
+  // Ao navegar para uma tela de um POP, abre o grupo dele (sem fechar os que o usuário abriu).
+  useEffect(() => {
+    const atual = itens.find((i): i is GrupoMenu => "grupo" in i && grupoAtivo(i));
+    if (atual) setExpandidos((s) => (s.has(atual.grupo) ? s : new Set(s).add(atual.grupo)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path, query]);
+  const alternar = (grupo: string) =>
+    setExpandidos((s) => {
+      const n = new Set(s);
+      if (n.has(grupo)) n.delete(grupo);
+      else n.add(grupo);
+      return n;
+    });
+
+  const link = (item: LinkMenu, filho = false) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      onClick={() => setAberto(false)}
+      className={`flex items-center gap-3 rounded-lg px-3 font-medium transition ${filho ? "py-1.5 text-[13px] leading-snug" : "py-2.5 text-sm"} ${
+        ativo(item.href) ? "bg-white text-marca-900" : "text-white/90 hover:bg-white/10"
+      }`}
+    >
+      {filho ? null : <Icone nome={item.icone} />}
+      <span className="flex-1">{item.rotulo}</span>
+      <Contador n={item.contador} />
+    </Link>
+  );
 
   const lista = (
     <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-      {itens.map((item, i) =>
-        "secao" in item ? (
-          <div key={i} className="px-3 pt-4 pb-1 text-[11px] font-semibold tracking-wider text-marca-100/70 uppercase">
-            {item.secao}
-          </div>
-        ) : (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setAberto(false)}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-              ativo(item.href) ? "bg-white text-marca-900" : "text-white/90 hover:bg-white/10"
-            }`}
-          >
-            <Icone nome={item.icone} />
-            <span className="flex-1">{item.rotulo}</span>
-            {item.contador ? (
-              <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{item.contador}</span>
-            ) : null}
-          </Link>
-        ),
-      )}
+      {itens.map((item, i) => {
+        if ("secao" in item)
+          return (
+            <div key={i} className="px-3 pt-4 pb-1 text-[11px] font-semibold tracking-wider text-marca-100/70 uppercase">
+              {item.secao}
+            </div>
+          );
+        if ("grupo" in item) {
+          const exp = expandidos.has(item.grupo);
+          return (
+            <div key={item.grupo}>
+              <button
+                type="button"
+                onClick={() => alternar(item.grupo)}
+                aria-expanded={exp}
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition hover:bg-white/10 ${
+                  grupoAtivo(item) ? "text-white" : "text-white/90"
+                }`}
+              >
+                <Icone nome={item.icone} />
+                <span className="flex-1 leading-tight">
+                  {item.rotulo}
+                  {item.subtitulo && <span className="block text-xs font-normal text-marca-100">{item.subtitulo}</span>}
+                </span>
+                {!exp && <Contador n={item.contador} />}
+                <svg viewBox="0 0 24 24" className={`h-4 w-4 shrink-0 transition ${exp ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </button>
+              {exp && <div className="mt-0.5 mb-1 ml-5 space-y-0.5 border-l border-white/15 pl-2">{item.filhos.map((f) => link(f, true))}</div>}
+            </div>
+          );
+        }
+        return link(item);
+      })}
     </nav>
   );
 
@@ -85,7 +136,7 @@ export function Navegacao({ itens, empresa, rodape }: { itens: ItemMenu[]; empre
           {rodape}
         </div>
       )}
-      <aside className="nao-imprimir sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-marca-900 lg:flex">
+      <aside className="nao-imprimir sticky top-0 hidden h-screen w-72 shrink-0 flex-col bg-marca-900 lg:flex">
         <div className="flex items-center gap-3 border-b border-white/10 p-4">
           <img src="/icone.svg" alt="" className="h-10 w-10" />
           <div className="leading-tight">
