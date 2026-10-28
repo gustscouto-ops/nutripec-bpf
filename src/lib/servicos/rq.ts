@@ -13,7 +13,8 @@ import type { Ctx } from "../auth";
  * assinatura e abertura automática de não conformidades.
  */
 
-export const CODIGO_RQ_RECEBIMENTO = "RQ 1.2";
+export { CODIGO_RQ_RECEBIMENTO } from "../rq/codigos";
+import { CODIGO_RQ_RECEBIMENTO } from "../rq/codigos";
 export const MAX_FOTOS = 5;
 const MAX_BYTES_FOTO = 8 * 1024 * 1024;
 const TIPOS_FOTO: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
