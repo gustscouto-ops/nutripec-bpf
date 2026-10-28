@@ -8,6 +8,11 @@ if [ "$(id -u)" = "0" ]; then
   HOME=/home/app exec setpriv --reuid=app --regid=app --init-groups sh "$0" "$@"
 fi
 mkdir -p "$DIR"
+if [ "$SEED_DEMO" = "1" ] && [ -z "$AUTH_SECRET" ]; then
+  # demonstração sem segredo configurado: gera um a cada início (só desloga quem estiver usando)
+  AUTH_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+  export AUTH_SECRET
+fi
 npx prisma migrate deploy
 if [ "$SEED_DEMO" = "1" ]; then
   npx tsx prisma/seed.ts   # demonstração: POPs + fábricas de exemplo (só se o banco estiver vazio)
